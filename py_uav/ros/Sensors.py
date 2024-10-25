@@ -29,56 +29,6 @@ from bebop_msgs.msg import (
 )
 
 
-class SensorDataManager:
-    """
-    Manages the sensor data and timestamps for Bebop2's sensors, controlling
-    the update frequency.
-    """
-
-    def __init__(self, update_interval: float):
-        """
-        Initialize the sensor data manager with a specific update interval.
-
-        :param update_interval: Minimum time interval between updates in
-                                seconds.
-        """
-        self.update_interval = update_interval
-        self.data = {}
-        self.timestamps = {}
-
-    def should_update(self, sensor_name: str) -> bool:
-        """
-        Determine if the sensor data should be updated based on the interval.
-
-        :param sensor_name: Name of the sensor.
-        :return: True if enough time has passed, False otherwise.
-        """
-        current_time = time.time()
-        last_update = self.timestamps.get(sensor_name)
-        if last_update is None or (current_time - last_update
-                                   ) >= self.update_interval:
-            self.timestamps[sensor_name] = current_time
-            return True
-        return False
-
-    def update_data(self, sensor_name: str, data) -> None:
-        """
-        Update the data for a specified sensor.
-
-        :param sensor_name: Name of the sensor.
-        :param data: Data to store for the sensor.
-        """
-        self.data[sensor_name] = data
-
-    def get_data(self) -> dict:
-        """
-        Retrieve all stored sensor data.
-
-        :return: Dictionary containing the latest sensor data.
-        """
-        return self.data
-
-
 class Sensors:
     """
     Manages and updates the Bebop2's sensor data via ROS topics, including
@@ -190,3 +140,53 @@ class Sensors:
         :return: A dictionary with current sensor readings.
         """
         return self.sensor_manager.get_data()
+
+
+class SensorDataManager:
+    """
+    Manages the sensor data and timestamps for Bebop2's sensors, controlling
+    the update frequency.
+    """
+
+    def __init__(self, update_interval: float):
+        """
+        Initialize the sensor data manager with a specific update interval.
+
+        :param update_interval: Minimum time interval between updates in
+                                seconds.
+        """
+        self.update_interval = update_interval
+        self.data = {}
+        self.timestamps = {}
+
+    def should_update(self, sensor_name: str) -> bool:
+        """
+        Determine if the sensor data should be updated based on the interval.
+
+        :param sensor_name: Name of the sensor.
+        :return: True if enough time has passed, False otherwise.
+        """
+        current_time = time.time()
+        last_update = self.timestamps.get(sensor_name)
+        if last_update is None or (current_time - last_update
+                                   ) >= self.update_interval:
+            self.timestamps[sensor_name] = current_time
+            return True
+        return False
+
+    def update_data(self, sensor_name: str, data) -> None:
+        """
+        Update the data for a specified sensor.
+
+        :param sensor_name: Name of the sensor.
+        :param data: Data to store for the sensor.
+        """
+        self.data[sensor_name] = data
+
+    def get_data(self) -> dict:
+        """
+        Retrieve all stored sensor data.
+
+        :return: Dictionary containing the latest sensor data.
+        """
+        return self.data
