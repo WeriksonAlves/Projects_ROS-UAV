@@ -22,9 +22,9 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import Empty, UInt8, Bool
 
 
-class ROSBebop2Control:
+class Control:
     """
-    ROSBebop2Control manages the basic control operations of the Bebop drone,
+    Control manages the basic control operations of the Bebop drone,
     including takeoff, landing, velocity control, reset, flat trim, flips, and
     autopilot commands via ROS topics.
     """
@@ -45,7 +45,7 @@ class ROSBebop2Control:
         self.publishers = {}
 
         self._initialize_publishers()
-        rospy.loginfo(f"ROS_Control initialized for {self.drone_type}.")
+        rospy.loginfo(f"Control initialized for {self.drone_type}.")
 
     def _initialize_publishers(self) -> None:
         """

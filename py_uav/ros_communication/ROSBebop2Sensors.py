@@ -76,7 +76,7 @@ class SensorDataManager:
         return self.data
 
 
-class ROSBebop2Sensors:
+class Sensors:
     """
     Manages and updates the Bebop2's sensor data via ROS topics,
     including odometry, GPS, altitude, attitude, speed, battery level,
@@ -85,7 +85,7 @@ class ROSBebop2Sensors:
 
     def __init__(self, drone_type: str, frequency: int = 30):
         """
-        Initialize the ROSBebop2Sensors class and set up ROS subscribers
+        Initialize the Sensors class and set up ROS subscribers
         to retrieve relevant sensor data.
 
         :param drone_type: The type of drone being used.
@@ -95,7 +95,7 @@ class ROSBebop2Sensors:
         self.drone_type = drone_type
         self.sensor_manager = SensorDataManager(update_interval=1 / frequency)
         self._initialize_subscribers()
-        rospy.loginfo(f"ROSBebop2Sensors initialized for {self.drone_type}.")
+        rospy.loginfo(f"Sensors initialized for {self.drone_type}.")
 
     def _initialize_subscribers(self) -> None:
         """Sets up ROS subscribers for each relevant drone sensor topic."""

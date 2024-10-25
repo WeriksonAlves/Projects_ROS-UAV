@@ -29,16 +29,16 @@ import rospy
 import time
 
 
-class ROSBebop2Camera:
+class Camera:
     """
-    DroneCamera handles camera operations, including capturing images,
+    Camera handles camera operations, including capturing images,
     managing camera orientation, and controlling exposure settings via ROS
     topics.
     """
 
     def __init__(self, drone_type: str, frequence: int = 30):
         """
-        Initialize the DroneCamera object with publishers, subscribers, and
+        Initialize the Camera object with publishers, subscribers, and
         image handling.
         """
         self.drone_type = drone_type
@@ -58,7 +58,7 @@ class ROSBebop2Camera:
         self.pubs = {}
         self.subs = {}
 
-        rospy.loginfo(f"DroneCamera initialized for {self.drone_type}.")
+        rospy.loginfo(f"Camera initialized for {self.drone_type}.")
 
     def init_publishers(self, topics: List[str]) -> dict:
         """
