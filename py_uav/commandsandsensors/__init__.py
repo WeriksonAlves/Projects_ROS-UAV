@@ -1,2 +1,2 @@
 # from .CommandParser import CommandParser
-from .SensorParser import SensorParser
+from .SensorsParser import SensorsParser

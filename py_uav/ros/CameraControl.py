@@ -54,22 +54,30 @@ class CameraControl:
         self.bridge = CvBridge()
         self.orientation = {'tilt': 0.0, 'pan': 0.0}
         self.param_listener = ParameterListener(self)
-        self.pubs = self._initialize_publishers()
-        self.subs = self._initialize_subscribers()
 
-        rospy.loginfo(f"CameraControl initialized for {self.drone_type}.")
+        try:
+            self.pubs = self._initialize_publishers()
+            self.subs = self._initialize_subscribers()
+            rospy.loginfo(f"CameraControl initialized for {self.drone_type}.")
+        except rospy.ROSException as e:
+            rospy.logerr(f"Failed to initialize CameraControl: {e}")
+            quit()
 
     def _initialize_publishers(self) -> dict:
         """Initialize ROS publishers for camera commands."""
-        topics = {
-            'camera_control': rospy.Publisher(
-                '/bebop/camera_control', Twist, queue_size=10),
-            'snapshot': rospy.Publisher(
-                '/bebop/snapshot', Empty, queue_size=10),
-            'set_exposure': rospy.Publisher(
-                '/bebop/set_exposure', Float32, queue_size=10)
-        }
-        return topics
+        try:
+            topics = {
+                'camera_control': rospy.Publisher(
+                    '/bebop/camera_control', Twist, queue_size=10),
+                'snapshot': rospy.Publisher(
+                    '/bebop/snapshot', Empty, queue_size=10),
+                'set_exposure': rospy.Publisher(
+                    '/bebop/set_exposure', Float32, queue_size=10)
+            }
+            return topics
+        except rospy.ROSException as e:
+            rospy.logerr(f"Failed to initialize publishers: {e}")
+            quit()
 
     def _initialize_subscribers(self) -> dict:
         """Initialize ROS subscribers for camera data and orientation."""

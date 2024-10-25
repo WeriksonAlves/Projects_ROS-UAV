@@ -44,8 +44,12 @@ class Sensors:
         """
         self.drone_type = drone_type
         self.sensor_manager = SensorDataManager(update_interval=1 / frequency)
-        self._initialize_subscribers()
-        rospy.loginfo(f"Sensors initialized for {self.drone_type}.")
+
+        try:
+            self._initialize_subscribers()
+            rospy.loginfo(f"Sensors initialized for {self.drone_type}.")
+        except rospy.ROSException as e:
+            rospy.logerr(f"Failed to initialize Sensors: {e}")
 
     def _initialize_subscribers(self) -> None:
         """Set up ROS subscribers for each drone sensor topic."""

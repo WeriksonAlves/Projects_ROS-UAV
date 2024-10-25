@@ -1,4 +1,4 @@
-from .commandsandsensors.SensorParser import SensorsParser
+from .commandsandsensors.SensorsParser import SensorsParser
 from .ros.CameraControl import CameraControl
 from .ros.DroneControl import DroneControl
 from typing import Callable, List, Optional, Tuple
@@ -80,51 +80,6 @@ class Bebop2:
         (whereas time.sleep() will break a mambo using BLE).
         """
         pass
-
-    # Camera management methods
-
-    def start_video_capture(self, publishers: List[str] = None,
-                            subscribers: List[str] = None) -> None:
-        """
-        Initialize video capture, set up publishers and subscribers for ROS
-        topics.
-
-        :param publishers: ROS topics to publish to. Default is camera control.
-        :param subscribers: ROS topics to subscribe to. Default is compressed
-        image data.
-        """
-        publishers = publishers or ['camera_control']
-        subscribers = subscribers or ['compressed', 'camera_orientation',
-                                      'compressed_description',
-                                      'compressed_update']
-
-        self._ensure_directory_exists()
-        try:
-            self.camera.pubs = self.camera.init_publishers(publishers)
-            rospy.loginfo(f"Initialized publishers: {publishers}")
-
-            self.camera.subs = self.camera.init_subscribers(subscribers)
-            rospy.loginfo(f"Initialized subscribers: {subscribers}")
-
-            self.camera.success_flags["isOpened"] = True
-            rospy.loginfo("Camera successfully initialized and opened.")
-        except Exception as e:
-            self.camera.success_flags["isOpened"] = False
-            rospy.logerr(f"Error during video capture initialization: {e}")
-
-    def _ensure_directory_exists(self) -> None:
-        """Ensure that the image storage directory exists."""
-        if not os.path.exists(self.camera.file_path):
-            os.makedirs(self.camera.file_path)
-            rospy.loginfo(f"Created directory: {self.camera.file_path}")
-
-    def is_camera_opened(self) -> bool:
-        """
-        Check if the camera is opened.
-
-        :return: True if the camera is active, False otherwise.
-        """
-        return self.camera.success_flags["isOpened"]
 
     def capture_frame(self, subscriber: str = 'compressed'
                       ) -> Tuple[bool, Optional[np.ndarray]]:

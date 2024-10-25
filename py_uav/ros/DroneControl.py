@@ -40,8 +40,13 @@ class DroneControl:
         self.command_interval = 1 / frequency
         self.last_command_time = time.time()
         self.vel_cmd = Twist()
-        self.publishers = self._initialize_publishers()
-        rospy.loginfo(f"DroneControl initialized for {self.drone_type}.")
+
+        try:
+            self.publishers = self._initialize_publishers()
+            rospy.loginfo(f"DroneControl initialized for {self.drone_type}.")
+        except rospy.ROSException as e:
+            rospy.logerr(f"Failed to initialize DroneControl: {e}")
+            quit()
 
     def _initialize_publishers(self) -> dict:
         """

@@ -14,9 +14,6 @@ def main():
     # Create a new UAV object
     uav = Bebop2()
 
-    # Create a routine for access the camera's drone
-    uav.start_video_capture()
-
     start_time = time.time()
     while True:
         if time.time() - start_time > .5:
