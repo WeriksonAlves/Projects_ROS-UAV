@@ -1,3 +1,3 @@
 from .CameraControl import CameraControl
-from .Control import Control
+from .DroneControl import DroneControl
 from .Sensors import Sensors
