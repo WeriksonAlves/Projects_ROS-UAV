@@ -1,3 +1,20 @@
+"""
+Purpose: This class manages sensor data from the drone, including GPS,
+         attitude, speed, and battery levels.
+
+Topics (9):
+    /bebop/odom
+    /bebop/fix (GPS data)
+    /bebop/states/ardrone3/PilotingState/AltitudeChanged
+    /bebop/states/ardrone3/PilotingState/AttitudeChanged
+    /bebop/states/ardrone3/PilotingState/PositionChanged
+    /bebop/states/ardrone3/PilotingState/SpeedChanged
+    /bebop/states/ardrone3/PilotingState/FlyingStateChanged
+    /bebop/states/common/CommonState/BatteryStateChanged
+    /bebop/states/common/CommonState/WifiSignalChanged
+"""
+
+
 import rospy
 import time
 from nav_msgs.msg import Odometry
