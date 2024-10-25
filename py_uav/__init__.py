@@ -1,6 +1,6 @@
-from .ros.Camera import ROSCamera
-from .ros.Control import ROSControl
-from .ros.Sensors import ROSSensors
+from .ros.Camera import Camera
+from .ros.Control import Control
+from .ros.Sensors import Sensors
 from .Bebop2 import Bebop2
 
 from .utils.Bebop2Indoors import Bebop2Indoors
