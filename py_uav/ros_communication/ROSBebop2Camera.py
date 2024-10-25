@@ -1,32 +1,48 @@
+"""
+Purpose: This class handles camera operations, including capturing raw images,
+         managing camera orientation, and controlling exposure settings.
+
+Topics (10):
+    /bebop/image_raw
+    /bebop/image_raw/compressed
+    /bebop/image_raw/compressed/parameter_descriptions
+    /bebop/image_raw/compressed/parameter_updates
+    /bebop/image_raw/compressedDepth
+    /bebop/image_raw/theora
+    /bebop/camera_control
+    /bebop/states/ardrone3/CameraState/Orientation
+    /bebop/set_exposure
+    /bebop/snapshot
+"""
+
 from bebop_msgs.msg import Ardrone3CameraStateOrientation
 from cv_bridge import CvBridge
 from dynamic_reconfigure.msg import ConfigDescription, Config
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Image, CompressedImage
 from std_msgs.msg import Empty, Float32
-from typing import List, Optional
+from typing import List
 
 import cv2
 import numpy as np
-import os
 import rospy
 import time
 
 
-class Bebop2Camera:
+class ROSBebop2Camera:
     """
     DroneCamera handles camera operations, including capturing images,
     managing camera orientation, and controlling exposure settings via ROS
     topics.
     """
 
-    def __init__(self, file_path: str, fps: int = 30):
+    def __init__(self, drone_type: str, frequence: int = 30):
         """
         Initialize the DroneCamera object with publishers, subscribers, and
         image handling.
         """
-        self.file_path = file_path
-        self.fps = fps
+        self.drone_type = drone_type
+        self.period = 1 / frequence
         self.current_time = time.time()
 
         self.image_data = {key: None for key in ['image', 'compressed',
@@ -36,21 +52,20 @@ class Bebop2Camera:
         self.current_tilt = 0.0
         self.current_pan = 0.0
 
-        self.param_listener = ParameterListener(self)
+        self.param_listener = ROSParameterListener(self)
         self.bridge = CvBridge()
 
         self.pubs = {}
         self.subs = {}
 
-        rospy.loginfo("DroneCamera initialized.")
+        rospy.loginfo(f"DroneCamera initialized for {self.drone_type}.")
 
     def init_publishers(self, topics: List[str]) -> dict:
         """
         Factory method to initialize ROS publishers.
 
         :param topics: List of ROS topics to publish to ['camera_control',
-            'snapshot', 'set_exposure', 'compressed_description',
-            'compressed_update'].
+            'snapshot', 'set_exposure'].
         """
         pub_map = {
             'camera_control': rospy.Publisher('/bebop/camera_control',
@@ -67,7 +82,8 @@ class Bebop2Camera:
         Factory method to initialize ROS subscribers.
 
         :param topics: List of ROS topics to subscribe to ['image',
-            'compressed', 'depth', 'theora'].
+            'compressed', 'depth', 'theora', camera_orientation,
+            'compressed_description', 'compressed_update'].
         """
         topic_map = {
             'image': ("/bebop/image_raw", Image, self._process_raw_image),
@@ -77,6 +93,10 @@ class Bebop2Camera:
                       self._process_compressed_depth_image),
             'theora': ("/bebop/image_raw/theora", CompressedImage,
                        self._process_theora_image),
+            'camera_orientation': (
+                "/bebop/states/ardrone3/CameraState/Orientation",
+                Ardrone3CameraStateOrientation,
+                self._process_camera_orientation)
         }
 
         subscribers = {
@@ -85,18 +105,12 @@ class Bebop2Camera:
             ) for topic in topics if topic in topic_map
         }
 
-        # Camera orientation subscriber
-        subscribers['camera_orientation'] = rospy.Subscriber(
-            "/bebop/states/ardrone3/CameraState/Orientation",
-            Ardrone3CameraStateOrientation,
-            self._process_camera_orientation
-        )
         self.param_listener.init_subscribers(topics)
         return subscribers
 
     def _should_process_frame(self) -> bool:
         """Check if the time interval has passed to process the next frame."""
-        if time.time() - self.current_time > (1 / self.fps):
+        if time.time() - self.current_time > (1 / self.period):
             self.current_time = time.time()
             return True
         return False
@@ -140,10 +154,9 @@ class Bebop2Camera:
                 data, "bgr8") if use_cv_bridge else cv2.imdecode(
                     np.frombuffer(data.data, np.uint8), cv2.IMREAD_COLOR)
 
-            # Save image and update status
-            img_path = os.path.join(self.file_path, filename)
-            self.success_flags[img_type] = self._save_image(image, img_path)
-            self.image_data[img_type] = self._load_image(img_path, img_type)
+            self.image_data[img_type] = image
+            if self.image_data[img_type] is not None:
+                self.success_flags[img_type] = True
 
         except (cv2.error, ValueError) as e:
             rospy.logerr(f"Failed to process {img_type} image: {e}")
@@ -151,11 +164,6 @@ class Bebop2Camera:
     def _save_image(self, image: np.ndarray, filename: str) -> bool:
         """Save an image to disk."""
         return cv2.imwrite(filename, image) if image is not None else False
-
-    def _load_image(self, filename: str, img_type: str
-                    ) -> Optional[np.ndarray]:
-        """Load an image from a file."""
-        return cv2.imread(filename) if self.success_flags[img_type] else None
 
     def pan_tilt_camera(self, tilt: float, pan: float) -> None:
         """Control the camera orientation."""
@@ -174,13 +182,13 @@ class Bebop2Camera:
         self.pubs['set_exposure'].publish(exposure_msg)
 
 
-class ParameterListener:
+class ROSParameterListener:
     """
     Listens to parameter updates for dynamic reconfiguration of camera
     parameters.
     """
 
-    def __init__(self, drone_camera: Bebop2Camera) -> None:
+    def __init__(self, drone_camera: ROSBebop2Camera) -> None:
         """Initialize the listener and set up ROS subscribers."""
         self.drone_camera = drone_camera
         self.subs = {}

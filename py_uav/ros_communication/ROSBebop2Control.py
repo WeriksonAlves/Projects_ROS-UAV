@@ -1,24 +1,47 @@
+"""
+Purpose: This class handles the basic control of the Bebop drone, including
+         taking off, landing, navigation, and velocity control.
+
+Topics (10):
+    /bebop/takeoff
+    /bebop/land
+    /bebop/cmd_vel
+    /bebop/reset
+    /bebop/flattrim
+    /bebop/flip
+    /bebop/autoflight/navigate_home
+    /bebop/autoflight/pause
+    /bebop/autoflight/start
+    /bebop/autoflight/stop
+"""
+
+
+import rospy
+import time
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Empty, UInt8, Bool
-import rospy
 
 
-class Bebop2Control:
+class ROSBebop2Control:
     """
     DroneControl manages the core operations of the Bebop drone, such as
     takeoff, landing, movement, reset, flat trim, flips, and autopilot
     commands via ROS topics.
     """
 
-    def __init__(self, drone_type: str):
+    def __init__(self, drone_type: str, frequence: int = 30):
         """
         Initialize the DroneControl class and set up ROS publishers for drone
         commands.
 
         :param drone_type: Type of the drone (for future use, e.g., different
         command sets).
+        :param frequence: Time interval between commands (default: 30 Hz).
         """
         self.drone_type = drone_type
+        self.period = 1 / frequence
+        self.current_time = time.time()
+
         self.vel_cmd = Twist()
         self.pubs = {}
 
@@ -68,6 +91,13 @@ class Bebop2Control:
         else:
             rospy.logwarn(f"Command {command} not found.")
 
+    def _should_process_frame(self) -> bool:
+        """Check if the time interval has passed to process the next frame."""
+        if time.time() - self.current_time > (self.period):
+            self.current_time = time.time()
+            return True
+        return False
+
     # Drone control methods
 
     def takeoff(self) -> None:
@@ -82,8 +112,8 @@ class Bebop2Control:
         """Command the drone to reset."""
         self._publish_command('reset')
 
-    def move(self, linear_x: float, linear_y: float, linear_z: float,
-             angular_z: float) -> None:
+    def move(self, linear_x: float = 0.0, linear_y: float = 0.0,
+             linear_z: float = 0.0, angular_z: float = 0.0) -> None:
         """
         Command the drone to move based on velocity inputs.
 
@@ -111,7 +141,7 @@ class Bebop2Control:
         else:
             rospy.logwarn(f"Invalid flip direction: {direction}")
 
-    # New autopilot control methods
+    # Autopilot control methods
 
     def navigate_home(self, start: bool) -> None:
         """

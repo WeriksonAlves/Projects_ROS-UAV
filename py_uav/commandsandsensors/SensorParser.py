@@ -1,22 +1,22 @@
 """
-Purpose: This class manages sensor data from the drone, including GPS,
-attitude, speed, and battery levels.
-
-Topics:
-    /bebop/odom
-    /bebop/fix (GPS data)
-    /bebop/states/ardrone3/PilotingState/AltitudeChanged
-    /bebop/states/ardrone3/PilotingState/AttitudeChanged
-    /bebop/states/ardrone3/PilotingState/PositionChanged
-    /bebop/states/ardrone3/PilotingState/SpeedChanged
-    /bebop/states/ardrone3/PilotingState/FlyingStateChanged
-    /bebop/states/common/CommonState/BatteryStateChanged
-/bebop/states/common/CommonState/WifiSignalChanged
+Purpose: Obtem os dados atraves da leituras dos sensores do drone, incluindo
+            GPS, atitude, velocidade e niveis de bateria. Reorganiza os dados
+            em um dicionario estruturado.
 """
 
+import time
+from ..ros_communication.ROSBebop2Sensors import ROSBebop2Sensors
 
-class Bebop2Sensors:
-    def __init__(self):
+
+class SensorsParser:
+    def __init__(self, drone_type: str, frequence: int = 30):
+        """
+        Initializes the SensorsParser object.
+        """
+        self.drone_type = drone_type
+        self.period = 1 / frequence
+        self.current_time = time.time()
+
         self.sensors_dict = dict()
         self.RelativeMoveEnded = False
         self.CameraMoveEnded_tilt = False
@@ -42,11 +42,62 @@ class Bebop2Sensors:
         self.video_framerate_changed = False
         self.video_resolutions_changed = False
 
-        # default to full battery
+        # Battery and user callback setup
         self.battery = 100
-
-        # this is optionally set elsewhere
         self.user_callback_function = None
+        self.sensors = ROSBebop2Sensors(drone_type)
+
+    # Private Methods
+
+    def _should_process(self) -> bool:
+        """Check if the time interval has passed to process."""
+        if time.time() - self.current_time > self.period:
+            self.current_time = time.time()
+            return True
+        return False
+
+    def _convert_to_si_units(self, raw_data):
+        """
+        Converts raw sensor data into SI units.
+
+        :param raw_data: Dictionary of raw sensor data
+        :return: Dictionary of data converted to SI units
+        """
+        si_data = {}
+
+        # Example of unit conversions (dummy logic - replace with actual conversions)
+        si_data['speed_mps'] = raw_data.get('speed', 0) * 0.27778  # Convert km/h to m/s
+        si_data['altitude_m'] = raw_data.get('altitude', 0)  # Assuming altitude is in meters
+        # (Add more conversions as needed for other data points)
+
+        return si_data
+
+    # Callback Methods
+
+    # Public Methods
+
+    def update_sensors(self):
+        """Fetches and converts sensor data to SI units at specified intervals."""
+        if self._should_process_frame():
+            raw_data = self.sensors.get_raw_sensor_data()  # Assuming this method exists
+            self.sensors_dict = self._convert_to_si_units(raw_data)
+            
+            # Call the user callback if it's defined
+            if self.user_callback_function:
+                self.user_callback_function(self.sensors_dict)
+
+    def get_sensor_data(self):
+        """
+        Updates the sensors dictionary with the most recent sensor values
+        """
+        # return Dictionary containing sensor data: odometry, GPS, altitude,
+        # attitude, position, speed, flying state, battery level, and WiFi signal.
+        self.sensors.update_sensors()
+
+
+
+
+    # Methods to be implemented
 
     def set_user_callback_function(self, function, args):
         """
@@ -161,3 +212,5 @@ class Bebop2Sensors:
     def __str__(self):
         str = "Bebop sensors: %s" % self.sensors_dict
         return str
+
+    
