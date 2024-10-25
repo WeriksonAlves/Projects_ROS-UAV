@@ -24,98 +24,98 @@ from std_msgs.msg import Empty, UInt8, Bool
 
 class ROSBebop2Control:
     """
-    DroneControl manages the core operations of the Bebop drone, such as
-    takeoff, landing, movement, reset, flat trim, flips, and autopilot
-    commands via ROS topics.
+    ROSBebop2Control manages the basic control operations of the Bebop drone,
+    including takeoff, landing, velocity control, reset, flat trim, flips, and
+    autopilot commands via ROS topics.
     """
 
-    def __init__(self, drone_type: str, frequence: int = 30):
+    def __init__(self, drone_type: str, frequency: int = 30):
         """
-        Initialize the DroneControl class and set up ROS publishers for drone
+        Initialize the control topics and set up ROS publishers for drone
         commands.
 
-        :param drone_type: Type of the drone (for future use, e.g., different
-        command sets).
-        :param frequence: Time interval between commands (default: 30 Hz).
+        :param drone_type: Type of the drone (e.g., for handling specific
+                           configurations).
+        :param frequency: Command frequency in Hz (default: 30 Hz).
         """
         self.drone_type = drone_type
-        self.period = 1 / frequence
-        self.current_time = time.time()
-
+        self.period = 1 / frequency
+        self.last_update_time = time.time()
         self.vel_cmd = Twist()
-        self.pubs = {}
+        self.publishers = {}
 
         self._initialize_publishers()
-        rospy.loginfo(f"DroneControl initialized for {self.drone_type}.")
+        rospy.loginfo(f"ROS_Control initialized for {self.drone_type}.")
 
     def _initialize_publishers(self) -> None:
         """
-        Initialize all necessary ROS publishers for controlling the drone.
+        Set up ROS publishers for controlling the drone via various topics.
         """
         topics = {
-            'takeoff': '/bebop/takeoff',
-            'land': '/bebop/land',
-            'reset': '/bebop/reset',
-            'cmd_vel': '/bebop/cmd_vel',
-            'flattrim': '/bebop/flattrim',
-            'flip': '/bebop/flip',
-            'navigate_home': '/bebop/autoflight/navigate_home',
-            'pause': '/bebop/autoflight/pause',
-            'start': '/bebop/autoflight/start',
-            'stop': '/bebop/autoflight/stop'
+            'takeoff': ('/bebop/takeoff', Empty),
+            'land': ('/bebop/land', Empty),
+            'reset': ('/bebop/reset', Empty),
+            'cmd_vel': ('/bebop/cmd_vel', Twist),
+            'flattrim': ('/bebop/flattrim', Empty),
+            'flip': ('/bebop/flip', UInt8),
+            'navigate_home': ('/bebop/autoflight/navigate_home', Bool),
+            'pause': ('/bebop/autoflight/pause', Empty),
+            'start': ('/bebop/autoflight/start', Empty),
+            'stop': ('/bebop/autoflight/stop', Empty),
         }
 
-        for key, topic in topics.items():
-            # Adjust message type based on the topic
-            if key in ['cmd_vel']:
-                self.pubs[key] = rospy.Publisher(topic, Twist, queue_size=10)
-            elif key in ['navigate_home']:
-                self.pubs[key] = rospy.Publisher(topic, Bool, queue_size=10)
-            else:
-                self.pubs[key] = rospy.Publisher(topic, Empty, queue_size=10)
+        for key, (topic, msg_type) in topics.items():
+            self.publishers[key] = rospy.Publisher(topic, msg_type,
+                                                   queue_size=10)
 
-        rospy.loginfo("All ROS publishers initialized for drone control.")
+        rospy.loginfo(
+            "ROS publishers initialized for all drone control topics.")
 
     def _publish_command(self, command: str, message=None) -> None:
         """
         Publish a command to the corresponding ROS topic.
 
         :param command: The name of the command (e.g., 'takeoff', 'land').
-        :param message: The message to be published (default: Empty message).
+        :param message: Message to be published; defaults to Empty if None.
         """
-        if command in self.pubs:
-            if message is None:
-                message = Empty()  # Default message is Empty if not provided
-            self.pubs[command].publish(message)
+        publisher = self.publishers.get(command)
+        if publisher:
+            message = message if message else Empty()
+            publisher.publish(message)
             rospy.loginfo(f"Published {command} command.")
         else:
-            rospy.logwarn(f"Command {command} not found.")
+            rospy.logwarn(f"Command {command} not recognized.")
 
     def _should_process_frame(self) -> bool:
-        """Check if the time interval has passed to process the next frame."""
-        if time.time() - self.current_time > (self.period):
-            self.current_time = time.time()
+        """
+        Check if the specified period has elapsed to process the next command.
+
+        :return: True if the period has elapsed; False otherwise.
+        """
+        current_time = time.time()
+        if current_time - self.last_update_time >= self.period:
+            self.last_update_time = current_time
             return True
         return False
 
-    # Drone control methods
+    # Core drone control methods
 
     def takeoff(self) -> None:
-        """Command the drone to take off."""
+        """Send the takeoff command to the drone."""
         self._publish_command('takeoff')
 
     def land(self) -> None:
-        """Command the drone to land."""
+        """Send the landing command to the drone."""
         self._publish_command('land')
 
     def reset(self) -> None:
-        """Command the drone to reset."""
+        """Send the reset command to the drone."""
         self._publish_command('reset')
 
     def move(self, linear_x: float = 0.0, linear_y: float = 0.0,
              linear_z: float = 0.0, angular_z: float = 0.0) -> None:
         """
-        Command the drone to move based on velocity inputs.
+        Control the drone's movement by setting velocities along each axis.
 
         :param linear_x: Forward/backward velocity.
         :param linear_y: Left/right velocity.
@@ -129,13 +129,22 @@ class ROSBebop2Control:
         self._publish_command('cmd_vel', self.vel_cmd)
 
     def flattrim(self) -> None:
-        """Command the drone to perform a flat trim calibration."""
+        """Send the flat trim calibration command to the drone."""
         self._publish_command('flattrim')
 
     def flip(self, direction: str) -> None:
-        """Command the drone to flip in a specified direction."""
-        flip_map = {'forward': UInt8(0), 'backward': UInt8(1),
-                    'left': UInt8(2), 'right': UInt8(3)}
+        """
+        Command the drone to perform a flip in a specified direction.
+
+        :param direction: Direction for the flip ('forward', 'backward',
+                          'left', 'right').
+        """
+        flip_map = {
+            'forward': UInt8(0),
+            'backward': UInt8(1),
+            'left': UInt8(2),
+            'right': UInt8(3)
+        }
         if direction in flip_map:
             self._publish_command('flip', flip_map[direction])
         else:
@@ -145,20 +154,20 @@ class ROSBebop2Control:
 
     def navigate_home(self, start: bool) -> None:
         """
-        Command the drone to navigate to home.
+        Command the drone to start or stop navigation to home.
 
         :param start: True to start navigating home, False to stop.
         """
         self._publish_command('navigate_home', Bool(data=start))
 
     def pause(self) -> None:
-        """Command the drone to pause an ongoing autopilot mission."""
+        """Pause any ongoing autopilot mission."""
         self._publish_command('pause')
 
     def start_autoflight(self) -> None:
-        """Command the drone to start an autopilot mission."""
+        """Start an autopilot mission."""
         self._publish_command('start')
 
     def stop_autoflight(self) -> None:
-        """Command the drone to stop an autopilot mission."""
+        """Stop the current autopilot mission."""
         self._publish_command('stop')
