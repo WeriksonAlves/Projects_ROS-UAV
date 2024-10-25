@@ -5,7 +5,7 @@ Purpose: Obtem os dados atraves da leituras dos sensores do drone, incluindo
 """
 
 import time
-from ..ros_communication.ROSBebop2Sensors import ROSBebop2Sensors
+from ..ros.Sensors import ROSBebop2Sensors
 
 
 class SensorsParser:

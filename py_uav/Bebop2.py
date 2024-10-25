@@ -1,6 +1,6 @@
 from .commandsandsensors.SensorParser import SensorsParser
-from .ros_communication.ROSBebop2Camera import ROSBebop2Camera
-from .ros_communication.ROSBebop2Control import ROSBebop2Control
+from .ros.Camera import ROSBebop2Camera
+from .ros.Control import ROSBebop2Control
 from typing import Callable, List, Optional, Tuple
 
 import os
