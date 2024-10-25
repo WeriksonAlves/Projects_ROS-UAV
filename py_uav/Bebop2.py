@@ -1,6 +1,6 @@
 from .commandsandsensors.SensorParser import SensorsParser
-from .ros.Camera import ROSBebop2Camera
-from .ros.Control import ROSBebop2Control
+from .ros.Camera import CameraControl
+from .ros.Control import Control
 from typing import Callable, List, Optional, Tuple
 
 import os
@@ -38,8 +38,8 @@ class Bebop2:
         }
 
         # Initialize drone components
-        self.camera = ROSBebop2Camera(drone_type)
-        self.control = ROSBebop2Control(drone_type)
+        self.camera = CameraControl(drone_type)
+        self.control = Control(drone_type)
         self.sensors = SensorsParser(drone_type)
 
     # Sensor Management Methods

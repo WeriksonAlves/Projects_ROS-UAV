@@ -1,8 +1,9 @@
 """
-Purpose: This class handles camera operations, including capturing raw images,
-         managing camera orientation, and controlling exposure settings.
+Purpose: This class handles camera operations for the Bebop drone, including
+capturing raw images, managing camera orientation, and controlling exposure
+settings.
 
-Topics (10):
+ROS Topics:
     /bebop/image_raw
     /bebop/image_raw/compressed
     /bebop/image_raw/compressed/parameter_descriptions
@@ -15,6 +16,11 @@ Topics (10):
     /bebop/snapshot
 """
 
+import cv2
+import numpy as np
+import rospy
+import time
+
 from bebop_msgs.msg import Ardrone3CameraStateOrientation
 from cv_bridge import CvBridge
 from dynamic_reconfigure.msg import ConfigDescription, Config
@@ -23,210 +29,192 @@ from sensor_msgs.msg import Image, CompressedImage
 from std_msgs.msg import Empty, Float32
 from typing import List
 
-import cv2
-import numpy as np
-import rospy
-import time
 
-
-class Camera:
+class CameraControl:
     """
-    Camera handles camera operations, including capturing images,
-    managing camera orientation, and controlling exposure settings via ROS
+    Manages camera operations for the Bebop drone, including capturing images,
+    managing camera orientation, and controlling exposure settings through ROS
     topics.
     """
 
-    def __init__(self, drone_type: str, frequence: int = 30):
+    def __init__(self, drone_type: str, frequency: int = 30):
         """
-        Initialize the Camera object with publishers, subscribers, and
-        image handling.
+        Initialize the CameraControl class with required publishers,
+        subscribers, and image handling configurations.
+
+        :param drone_type: Type of the drone (e.g., "Bebop2").
+        :param frequency: Frequency of camera operations (default: 30 Hz).
         """
         self.drone_type = drone_type
-        self.period = 1 / frequence
-        self.current_time = time.time()
-
+        self.period = 1 / frequency
+        self.last_update_time = time.time()
         self.image_data = {key: None for key in ['image', 'compressed',
                                                  'depth', 'theora']}
         self.success_flags = {key: False for key in self.image_data.keys()}
-        self.success_flags['isOpened'] = False
-        self.current_tilt = 0.0
-        self.current_pan = 0.0
-
-        self.param_listener = ROSParameterListener(self)
         self.bridge = CvBridge()
+        self.orientation = {'tilt': 0.0, 'pan': 0.0}
+        self.param_listener = ParameterListener(self)
+        self.pubs = self._initialize_publishers()
+        self.subs = self._initialize_subscribers()
 
-        self.pubs = {}
-        self.subs = {}
+        rospy.loginfo(f"CameraControl initialized for {self.drone_type}.")
 
-        rospy.loginfo(f"Camera initialized for {self.drone_type}.")
-
-    def init_publishers(self, topics: List[str]) -> dict:
-        """
-        Factory method to initialize ROS publishers.
-
-        :param topics: List of ROS topics to publish to ['camera_control',
-            'snapshot', 'set_exposure'].
-        """
-        pub_map = {
-            'camera_control': rospy.Publisher('/bebop/camera_control',
-                                              Twist, queue_size=10),
-            'snapshot': rospy.Publisher('/bebop/snapshot',
-                                        Empty, queue_size=10),
-            'set_exposure': rospy.Publisher('/bebop/set_exposure',
-                                            Float32, queue_size=10)
+    def _initialize_publishers(self) -> dict:
+        """Initialize ROS publishers for camera commands."""
+        topics = {
+            'camera_control': rospy.Publisher(
+                '/bebop/camera_control', Twist, queue_size=10),
+            'snapshot': rospy.Publisher(
+                '/bebop/snapshot', Empty, queue_size=10),
+            'set_exposure': rospy.Publisher(
+                '/bebop/set_exposure', Float32, queue_size=10)
         }
-        return {topic: pub_map[topic] for topic in topics if topic in pub_map}
+        return topics
 
-    def init_subscribers(self, topics: List[str]) -> dict:
-        """
-        Factory method to initialize ROS subscribers.
-
-        :param topics: List of ROS topics to subscribe to ['image',
-            'compressed', 'depth', 'theora', camera_orientation,
-            'compressed_description', 'compressed_update'].
-        """
-        topic_map = {
-            'image': ("/bebop/image_raw", Image, self._process_raw_image),
-            'compressed': ("/bebop/image_raw/compressed", CompressedImage,
-                           self._process_compressed_image),
-            'depth': ("/bebop/image_raw/compressedDepth", CompressedImage,
-                      self._process_compressed_depth_image),
-            'theora': ("/bebop/image_raw/theora", CompressedImage,
-                       self._process_theora_image),
-            'camera_orientation': (
+    def _initialize_subscribers(self) -> dict:
+        """Initialize ROS subscribers for camera data and orientation."""
+        topics = {
+            'image': rospy.Subscriber(
+                "/bebop/image_raw", Image, self._process_raw_image),
+            'compressed': rospy.Subscriber(
+                "/bebop/image_raw/compressed", CompressedImage,
+                self._process_compressed_image),
+            'depth': rospy.Subscriber(
+                "/bebop/image_raw/compressedDepth", CompressedImage,
+                self._process_compressed_depth_image),
+            'theora': rospy.Subscriber(
+                "/bebop/image_raw/theora", CompressedImage,
+                self._process_theora_image),
+            'camera_orientation': rospy.Subscriber(
                 "/bebop/states/ardrone3/CameraState/Orientation",
                 Ardrone3CameraStateOrientation,
                 self._process_camera_orientation)
         }
+        self.param_listener.init_subscribers(['compressed_description',
+                                              'compressed_update'])
+        return topics
 
-        subscribers = {
-            topic: rospy.Subscriber(
-                topic_map[topic][0], topic_map[topic][1], topic_map[topic][2]
-            ) for topic in topics if topic in topic_map
-        }
-
-        self.param_listener.init_subscribers(topics)
-        return subscribers
-
-    def _should_process_frame(self) -> bool:
-        """Check if the time interval has passed to process the next frame."""
-        if time.time() - self.current_time > (1 / self.period):
-            self.current_time = time.time()
+    def _time_to_update(self) -> bool:
+        """
+        Check if enough time has passed for the next camera operation update.
+        """
+        if time.time() - self.last_update_time >= self.period:
+            self.last_update_time = time.time()
             return True
         return False
 
     def _process_raw_image(self, data: Image) -> None:
-        """Process and save raw image data."""
-        if self._should_process_frame():
-            self._save_and_load_image(data, "image_raw.png", "image",
-                                      use_cv_bridge=True)
+        """Process raw image data from the ROS topic."""
+        if self._time_to_update():
+            self._save_image_data(data, "image_raw.png", 'image',
+                                  use_cv_bridge=True)
 
     def _process_compressed_image(self, data: CompressedImage) -> None:
-        """Process and save compressed image data."""
-        if self._should_process_frame():
-            self._save_and_load_image(data, "compressed.png", "compressed")
+        """Process compressed image data from the ROS topic."""
+        if self._time_to_update():
+            self._save_image_data(data, "compressed.png", 'compressed')
 
     def _process_compressed_depth_image(self, data: CompressedImage) -> None:
-        """Process and save compressed depth image data."""
-        if self._should_process_frame():
-            self._save_and_load_image(data, "depth.png", "depth")
+        """Process compressed depth image data from the ROS topic."""
+        if self._time_to_update():
+            self._save_image_data(data, "depth.png", 'depth')
 
     def _process_theora_image(self, data: CompressedImage) -> None:
-        """Process and save Theora-encoded image data."""
-        if self._should_process_frame():
-            self._save_and_load_image(data, "theora.png", "theora")
+        """Process Theora-encoded image data from the ROS topic."""
+        if self._time_to_update():
+            self._save_image_data(data, "theora.png", 'theora')
 
     def _process_camera_orientation(self, data: Ardrone3CameraStateOrientation
                                     ) -> None:
-        """Update camera orientation based on ROS topic."""
-        if self._should_process_frame():
-            self.current_tilt = data.tilt
-            self.current_pan = data.pan
+        """Update camera orientation from the ROS topic."""
+        if self._time_to_update():
+            self.orientation['tilt'] = data.tilt
+            self.orientation['pan'] = data.pan
 
-    def _save_and_load_image(self, data: CompressedImage, filename: str,
-                             img_type: str, use_cv_bridge=False) -> None:
+    def _save_image_data(self, data, filename: str, img_type: str,
+                         use_cv_bridge: bool = False) -> None:
         """
-        Save and load image data using the appropriate decoding mechanism.
+        Save image data from the ROS topic using the appropriate decoding
+        mechanism.
+
+        :param data: Image data from ROS.
+        :param filename: Filename to save the image.
+        :param img_type: Type of the image (e.g., 'image', 'compressed').
+        :param use_cv_bridge: Flag to indicate if CvBridge should be used for
+                              conversion.
         """
         try:
-            # Decode image from ROS message
-            image = self.bridge.imgmsg_to_cv2(
-                data, "bgr8") if use_cv_bridge else cv2.imdecode(
-                    np.frombuffer(data.data, np.uint8), cv2.IMREAD_COLOR)
-
+            image = (self.bridge.imgmsg_to_cv2(data, "bgr8") if use_cv_bridge
+                     else cv2.imdecode(np.frombuffer(data.data, np.uint8
+                                                     ), cv2.IMREAD_COLOR))
             self.image_data[img_type] = image
-            if self.image_data[img_type] is not None:
-                self.success_flags[img_type] = True
-
+            self.success_flags[img_type] = image is not None
         except (cv2.error, ValueError) as e:
             rospy.logerr(f"Failed to process {img_type} image: {e}")
 
-    def _save_image(self, image: np.ndarray, filename: str) -> bool:
-        """Save an image to disk."""
-        return cv2.imwrite(filename, image) if image is not None else False
+    def control_camera_orientation(self, tilt: float, pan: float) -> None:
+        """
+        Set the camera orientation.
 
-    def pan_tilt_camera(self, tilt: float, pan: float) -> None:
-        """Control the camera orientation."""
-        camera_control_msg = Twist()
-        camera_control_msg.angular.y = tilt
-        camera_control_msg.angular.z = pan
-        self.pubs['camera_control'].publish(camera_control_msg)
+        :param tilt: Camera tilt angle.
+        :param pan: Camera pan angle.
+        """
+        control_msg = Twist()
+        control_msg.angular.y = tilt
+        control_msg.angular.z = pan
+        self.pubs['camera_control'].publish(control_msg)
 
-    def take_snapshot(self) -> None:
-        """Command the drone to take a snapshot."""
+    def capture_snapshot(self) -> None:
+        """Capture a snapshot with the drone's camera."""
         self.pubs['snapshot'].publish(Empty())
 
-    def set_exposure(self, exposure_value: float) -> None:
-        """Adjust the camera exposure."""
-        exposure_msg = Float32(data=exposure_value)
-        self.pubs['set_exposure'].publish(exposure_msg)
+    def adjust_exposure(self, exposure: float) -> None:
+        """Adjust the camera exposure setting."""
+        self.pubs['set_exposure'].publish(Float32(data=exposure))
 
 
-class ROSParameterListener:
-    """
-    Listens to parameter updates for dynamic reconfiguration of camera
-    parameters.
-    """
+class ParameterListener:
+    """Listens to dynamic parameter updates for the Bebop camera."""
 
-    def __init__(self, drone_camera: ROSBebop2Camera) -> None:
-        """Initialize the listener and set up ROS subscribers."""
-        self.drone_camera = drone_camera
-        self.subs = {}
+    def __init__(self, camera: CameraControl) -> None:
+        """
+        Initialize the ParameterListener with references to the CameraControl.
+        """
+        self.camera = camera
+        self.subscribers = {}
 
     def init_subscribers(self, topics: List[str]) -> None:
-        """Initialize subscribers for dynamic reconfiguration."""
-        topic_map = {
+        """
+        Initialize dynamic reconfiguration subscribers for parameter updates.
+        """
+        param_topics = {
             'compressed_description': (
                 "/bebop/image_raw/compressed/parameter_descriptions",
-                ConfigDescription, self._callback_param_desc),
+                ConfigDescription, self._param_desc_callback),
             'compressed_update': (
                 "/bebop/image_raw/compressed/parameter_updates", Config,
-                self._callback_param_update)
+                self._param_update_callback)
         }
         for topic in topics:
-            if topic in topic_map:
-                topic_name, msg_type, callback = topic_map[topic]
-                self.subs[topic] = rospy.Subscriber(topic_name, msg_type,
-                                                    callback)
+            if topic in param_topics:
+                topic_name, msg_type, callback = param_topics[topic]
+                self.subscribers[topic] = rospy.Subscriber(topic_name,
+                                                           msg_type, callback)
 
-    def _callback_param_desc(self, data: ConfigDescription) -> None:
-        """Callback for parameter descriptions."""
+    def _param_desc_callback(self, data: ConfigDescription) -> None:
+        """Callback to log parameter descriptions."""
         for group in data.groups:
             rospy.loginfo(f"Parameter group: {group.name}")
             for param in group.parameters:
                 rospy.logdebug(f" Parameter: {param.name}, Type: {param.type}")
 
-    def _callback_param_update(self, data: Config) -> None:
-        """Callback for parameter updates."""
-        self._update_parameters(data.doubles)
+    def _param_update_callback(self, data: Config) -> None:
+        """Callback to update camera parameters based on new configuration."""
+        self._apply_new_parameters(data.doubles)
 
-    def _update_parameters(self, parameters: list) -> None:
-        """Update camera settings based on received parameters."""
+    def _apply_new_parameters(self, parameters: list) -> None:
+        """Apply updated camera parameters."""
         for param in parameters:
             if param.name == "compression_quality":
-                self._update_compression_quality(param.value)
-
-    def _update_compression_quality(self, value: float) -> None:
-        """Update the compression quality of the drone camera."""
-        rospy.loginfo(f"Updating compression quality to {value}")
-        self.drone_camera.compression_quality = value
+                rospy.loginfo(f"Setting compression quality to {param.value}")
+                self.camera.compression_quality = param.value
