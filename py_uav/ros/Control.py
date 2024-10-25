@@ -1,6 +1,6 @@
 """
 Purpose: This class handles the basic control of the Bebop drone, including
-         taking off, landing, navigation, and velocity control.
+taking off, landing, navigation, and velocity control.
 
 Topics (10):
     /bebop/takeoff
@@ -15,41 +15,40 @@ Topics (10):
     /bebop/autoflight/stop
 """
 
-
 import rospy
 import time
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Empty, UInt8, Bool
 
 
-class Control:
+class DroneControl:
     """
-    Control manages the basic control operations of the Bebop drone,
-    including takeoff, landing, velocity control, reset, flat trim, flips, and
-    autopilot commands via ROS topics.
+    DroneControl manages basic control operations of the Bebop drone,
+    including takeoff, landing, velocity control, reset, flat trim, flips,
+    and autopilot commands via ROS topics.
     """
 
     def __init__(self, drone_type: str, frequency: int = 30):
         """
-        Initialize the control topics and set up ROS publishers for drone
-        commands.
+        Initialize the control class for the drone and set up ROS publishers.
 
-        :param drone_type: Type of the drone (e.g., for handling specific
-                           configurations).
-        :param frequency: Command frequency in Hz (default: 30 Hz).
+        :param drone_type: Specifies the drone type, allowing for custom
+                           configurations.
+        :param frequency: Control command frequency in Hz (default is 30 Hz).
         """
         self.drone_type = drone_type
-        self.period = 1 / frequency
-        self.last_update_time = time.time()
+        self.command_interval = 1 / frequency
+        self.last_command_time = time.time()
         self.vel_cmd = Twist()
-        self.publishers = {}
+        self.publishers = self._initialize_publishers()
+        rospy.loginfo(f"DroneControl initialized for {self.drone_type}.")
 
-        self._initialize_publishers()
-        rospy.loginfo(f"Control initialized for {self.drone_type}.")
-
-    def _initialize_publishers(self) -> None:
+    def _initialize_publishers(self) -> dict:
         """
-        Set up ROS publishers for controlling the drone via various topics.
+        Set up and return a dictionary of ROS publishers for controlling the
+        drone.
+
+        :return: Dictionary mapping command names to their ROS publishers.
         """
         topics = {
             'takeoff': ('/bebop/takeoff', Empty),
@@ -63,20 +62,17 @@ class Control:
             'start': ('/bebop/autoflight/start', Empty),
             'stop': ('/bebop/autoflight/stop', Empty),
         }
-
-        for key, (topic, msg_type) in topics.items():
-            self.publishers[key] = rospy.Publisher(topic, msg_type,
-                                                   queue_size=10)
-
-        rospy.loginfo(
-            "ROS publishers initialized for all drone control topics.")
+        return {
+            name: rospy.Publisher(topic, msg_type, queue_size=10)
+            for name, (topic, msg_type) in topics.items()
+        }
 
     def _publish_command(self, command: str, message=None) -> None:
         """
-        Publish a command to the corresponding ROS topic.
+        Publish a command to its corresponding ROS topic.
 
-        :param command: The name of the command (e.g., 'takeoff', 'land').
-        :param message: Message to be published; defaults to Empty if None.
+        :param command: Command name (e.g., 'takeoff', 'land').
+        :param message: Message to publish; defaults to Empty if None.
         """
         publisher = self.publishers.get(command)
         if publisher:
@@ -86,15 +82,15 @@ class Control:
         else:
             rospy.logwarn(f"Command {command} not recognized.")
 
-    def _should_process_frame(self) -> bool:
+    def _is_time_to_command(self) -> bool:
         """
-        Check if the specified period has elapsed to process the next command.
+        Check if enough time has passed since the last command.
 
-        :return: True if the period has elapsed; False otherwise.
+        :return: True if the command interval has passed; otherwise, False.
         """
         current_time = time.time()
-        if current_time - self.last_update_time >= self.period:
-            self.last_update_time = current_time
+        if current_time - self.last_command_time >= self.command_interval:
+            self.last_command_time = current_time
             return True
         return False
 
@@ -139,14 +135,14 @@ class Control:
         :param direction: Direction for the flip ('forward', 'backward',
                           'left', 'right').
         """
-        flip_map = {
+        flip_directions = {
             'forward': UInt8(0),
             'backward': UInt8(1),
             'left': UInt8(2),
             'right': UInt8(3)
         }
-        if direction in flip_map:
-            self._publish_command('flip', flip_map[direction])
+        if direction in flip_directions:
+            self._publish_command('flip', flip_directions[direction])
         else:
             rospy.logwarn(f"Invalid flip direction: {direction}")
 
