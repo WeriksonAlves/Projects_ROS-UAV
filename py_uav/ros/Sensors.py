@@ -133,7 +133,7 @@ class Sensors:
         if self.sensor_manager.should_update("wifi_signal"):
             self.sensor_manager.update_data("wifi_signal", data.rssi)
 
-    def get_sensor_data(self) -> dict:
+    def get_raw_sensor_data(self) -> dict:
         """
         Retrieve the latest sensor data.
 
