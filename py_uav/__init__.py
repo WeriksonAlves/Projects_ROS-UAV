@@ -1,4 +1,4 @@
-from .ros.Camera import CameraControl
+from .ros.CameraControl import CameraControl
 from .ros.Control import Control
 from .ros.Sensors import Sensors
 from .Bebop2 import Bebop2

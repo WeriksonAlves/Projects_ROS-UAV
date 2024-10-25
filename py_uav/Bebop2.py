@@ -1,5 +1,5 @@
 from .commandsandsensors.SensorParser import SensorsParser
-from .ros.Camera import CameraControl
+from .ros.CameraControl import CameraControl
 from .ros.Control import Control
 from typing import Callable, List, Optional, Tuple
 
