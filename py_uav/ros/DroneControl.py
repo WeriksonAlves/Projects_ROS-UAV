@@ -1,18 +1,18 @@
 """
-Purpose: This class handles the basic control of the Bebop drone, including
-taking off, landing, navigation, and velocity control.
+Purpose: Manages the Bebop drone's basic control operations, including
+takeoff, landing, movement, flips, and autopilot commands through ROS topics.
 
-Topics (10):
-    /bebop/takeoff
-    /bebop/land
-    /bebop/cmd_vel
-    /bebop/reset
-    /bebop/flattrim
-    /bebop/flip
-    /bebop/autoflight/navigate_home
-    /bebop/autoflight/pause
-    /bebop/autoflight/start
-    /bebop/autoflight/stop
+Used Topics (10):
+    - /bebop/takeoff
+    - /bebop/land
+    - /bebop/cmd_vel
+    - /bebop/reset
+    - /bebop/flattrim
+    - /bebop/flip
+    - /bebop/autoflight/navigate_home
+    - /bebop/autoflight/pause
+    - /bebop/autoflight/start
+    - /bebop/autoflight/stop
 """
 
 import rospy
@@ -24,41 +24,37 @@ from std_msgs.msg import Empty, UInt8, Bool
 
 class DroneControl(RosCommunication):
     """
-    DroneControl manages basic control operations of the Bebop drone,
-    including takeoff, landing, velocity control, reset, flat trim, flips,
-    and autopilot commands via ROS topics.
+    Manages basic control operations for the Bebop drone, such as takeoff,
+    landing, movement, and autopilot controls via ROS publishers.
     """
 
     def __init__(self, drone_type: str, frequency: int = 30):
         """
-        Initialize the control class for the drone and set up ROS publishers.
+        Initializes the DroneControl class with required ROS publishers
+        for drone commands.
 
-        :param drone_type: Specifies the drone type, allowing for custom
-                           configurations.
-        :param frequency: Control command frequency in Hz (default is 30 Hz).
+        :param drone_type: Specifies the type of drone (e.g., "Bebop2").
+        :param frequency: Command frequency in Hz (default: 30).
         """
         self.drone_type = drone_type
         self.command_interval = 1 / frequency
         self.last_command_time = time.time()
         self.vel_cmd = Twist()
-
         try:
             self.publishers = self._initialize_publishers()
             rospy.loginfo(f"DroneControl initialized for {self.drone_type}.")
         except rospy.ROSException as e:
-            rospy.logerr(f"Failed to initialize DroneControl: {e}")
+            rospy.logerr(f"DroneControl initialization failed: {e}")
             quit()
 
     def _initialize_subscribers(self) -> None:
-        """
-        Initialize ROS subscribers for drone state information.
-        """
+        """Sets up ROS subscribers; currently no subscribers are required."""
         pass
 
     def _initialize_publishers(self) -> dict:
         """
-        Set up and return a dictionary of ROS publishers for controlling the
-        drone.
+        Initializes and returns a dictionary of ROS publishers for drone
+        commands.
 
         :return: Dictionary mapping command names to their ROS publishers.
         """
@@ -81,24 +77,23 @@ class DroneControl(RosCommunication):
 
     def _publish_command(self, command: str, message=None) -> None:
         """
-        Publish a command to its corresponding ROS topic.
+        Publishes a command to its ROS topic.
 
-        :param command: Command name (e.g., 'takeoff', 'land').
-        :param message: Message to publish; defaults to Empty if None.
+        :param command: Command name to publish (e.g., 'takeoff', 'land').
+        :param message: Message to publish; defaults to Empty() if None.
         """
         publisher = self.publishers.get(command)
         if publisher:
-            message = message if message else Empty()
-            publisher.publish(message)
+            publisher.publish(message or Empty())
             rospy.loginfo(f"Published {command} command.")
         else:
-            rospy.logwarn(f"Command {command} not recognized.")
+            rospy.logwarn(f"Unknown command: {command}")
 
     def _is_time_to_command(self) -> bool:
         """
-        Check if enough time has passed since the last command.
+        Checks if enough time has passed since the last command.
 
-        :return: True if the command interval has passed; otherwise, False.
+        :return: True if the command interval has passed; False otherwise.
         """
         current_time = time.time()
         if current_time - self.last_command_time >= self.command_interval:
@@ -106,24 +101,24 @@ class DroneControl(RosCommunication):
             return True
         return False
 
-    # Core drone control methods
+    # Core control methods
 
     def takeoff(self) -> None:
-        """Send the takeoff command to the drone."""
+        """Commands the drone to take off."""
         self._publish_command('takeoff')
 
     def land(self) -> None:
-        """Send the landing command to the drone."""
+        """Commands the drone to land."""
         self._publish_command('land')
 
     def reset(self) -> None:
-        """Send the reset command to the drone."""
+        """Commands the drone to reset."""
         self._publish_command('reset')
 
     def move(self, linear_x: float = 0.0, linear_y: float = 0.0,
              linear_z: float = 0.0, angular_z: float = 0.0) -> None:
         """
-        Control the drone's movement by setting velocities along each axis.
+        Commands the drone to move with specified velocities.
 
         :param linear_x: Forward/backward velocity.
         :param linear_y: Left/right velocity.
@@ -137,15 +132,15 @@ class DroneControl(RosCommunication):
         self._publish_command('cmd_vel', self.vel_cmd)
 
     def flattrim(self) -> None:
-        """Send the flat trim calibration command to the drone."""
+        """Commands the drone to perform flat trim calibration."""
         self._publish_command('flattrim')
 
     def flip(self, direction: str) -> None:
         """
-        Command the drone to perform a flip in a specified direction.
+        Commands the drone to perform a flip in the specified direction.
 
-        :param direction: Direction for the flip ('forward', 'backward',
-                          'left', 'right').
+        :param direction: Direction for flip ('forward', 'backward', 'left',
+                          or 'right').
         """
         flip_directions = {
             'forward': UInt8(0),
@@ -153,8 +148,9 @@ class DroneControl(RosCommunication):
             'left': UInt8(2),
             'right': UInt8(3)
         }
-        if direction in flip_directions:
-            self._publish_command('flip', flip_directions[direction])
+        flip_cmd = flip_directions.get(direction)
+        if flip_cmd is not None:
+            self._publish_command('flip', flip_cmd)
         else:
             rospy.logwarn(f"Invalid flip direction: {direction}")
 
@@ -162,20 +158,20 @@ class DroneControl(RosCommunication):
 
     def navigate_home(self, start: bool) -> None:
         """
-        Command the drone to start or stop navigation to home.
+        Commands the drone to start or stop navigation to home.
 
         :param start: True to start navigating home, False to stop.
         """
         self._publish_command('navigate_home', Bool(data=start))
 
     def pause(self) -> None:
-        """Pause any ongoing autopilot mission."""
+        """Pauses any ongoing autopilot mission."""
         self._publish_command('pause')
 
     def start_autoflight(self) -> None:
-        """Start an autopilot mission."""
+        """Starts an autopilot mission."""
         self._publish_command('start')
 
     def stop_autoflight(self) -> None:
-        """Stop the current autopilot mission."""
+        """Stops the current autopilot mission."""
         self._publish_command('stop')

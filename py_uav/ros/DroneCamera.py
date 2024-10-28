@@ -4,23 +4,23 @@ capturing raw images, managing camera orientation, and controlling exposure
 settings.
 
 Used Topics (10):
-    /bebop/image_raw
-    /bebop/image_raw/compressed
-    /bebop/image_raw/compressed/parameter_descriptions
-    /bebop/image_raw/compressed/parameter_updates
-    /bebop/image_raw/compressedDepth
-    /bebop/image_raw/theora
-    /bebop/camera_control
-    /bebop/states/ardrone3/CameraState/Orientation
-    /bebop/set_exposure
-    /bebop/snapshot
+    - /bebop/image_raw
+    - /bebop/image_raw/compressed
+    - /bebop/image_raw/compressed/parameter_descriptions
+    - /bebop/image_raw/compressed/parameter_updates
+    - /bebop/image_raw/compressedDepth
+    - /bebop/image_raw/theora
+    - /bebop/camera_control
+    - /bebop/states/ardrone3/CameraState/Orientation
+    - /bebop/set_exposure
+    - /bebop/snapshot
 
 Missing Topics (5):
-    /bebop/camera_info
-    /bebop/image_raw/compressedDepth/parameter_descriptions
-    /bebop/image_raw/compressedDepth/parameter_updates
-    /bebop/image_raw/theora/parameter_descriptions
-    /bebop/image_raw/theora/parameter_updates
+    - /bebop/camera_info
+    - /bebop/image_raw/compressedDepth/parameter_descriptions
+    - /bebop/image_raw/compressedDepth/parameter_updates
+    - /bebop/image_raw/theora/parameter_descriptions
+    - /bebop/image_raw/theora/parameter_updates
 """
 
 import cv2
