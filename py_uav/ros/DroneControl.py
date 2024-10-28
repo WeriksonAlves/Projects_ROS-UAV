@@ -17,11 +17,12 @@ Topics (10):
 
 import rospy
 import time
+from ..interfaces.RosCommunication import RosCommunication
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Empty, UInt8, Bool
 
 
-class DroneControl:
+class DroneControl(RosCommunication):
     """
     DroneControl manages basic control operations of the Bebop drone,
     including takeoff, landing, velocity control, reset, flat trim, flips,
@@ -47,6 +48,12 @@ class DroneControl:
         except rospy.ROSException as e:
             rospy.logerr(f"Failed to initialize DroneControl: {e}")
             quit()
+
+    def _initialize_subscribers(self) -> None:
+        """
+        Initialize ROS subscribers for drone state information.
+        """
+        pass
 
     def _initialize_publishers(self) -> dict:
         """

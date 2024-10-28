@@ -3,7 +3,7 @@ Purpose: This class handles camera operations for the Bebop drone, including
 capturing raw images, managing camera orientation, and controlling exposure
 settings.
 
-ROS Topics:
+Topics (10):
     /bebop/image_raw
     /bebop/image_raw/compressed
     /bebop/image_raw/compressed/parameter_descriptions
@@ -14,13 +14,20 @@ ROS Topics:
     /bebop/states/ardrone3/CameraState/Orientation
     /bebop/set_exposure
     /bebop/snapshot
+
+Missing topics (5):
+    /bebop/camera_info
+    /bebop/image_raw/compressedDepth/parameter_descriptions
+    /bebop/image_raw/compressedDepth/parameter_updates
+    /bebop/image_raw/theora/parameter_descriptions
+    /bebop/image_raw/theora/parameter_updates
 """
 
 import cv2
 import numpy as np
 import rospy
 import time
-
+from ..interfaces.RosCommunication import RosCommunication
 from bebop_msgs.msg import Ardrone3CameraStateOrientation
 from cv_bridge import CvBridge
 from dynamic_reconfigure.msg import ConfigDescription, Config
@@ -30,7 +37,7 @@ from std_msgs.msg import Empty, Float32
 from typing import List
 
 
-class CameraControl:
+class CameraControl(RosCommunication):
     """
     Manages camera operations for the Bebop drone, including capturing images,
     managing camera orientation, and controlling exposure settings through ROS

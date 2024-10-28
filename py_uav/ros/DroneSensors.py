@@ -16,6 +16,7 @@ Topics (9):
 
 import rospy
 import time
+from ..interfaces.RosCommunication import RosCommunication
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
 from bebop_msgs.msg import (
@@ -29,7 +30,7 @@ from bebop_msgs.msg import (
 )
 
 
-class Sensors:
+class Sensors(RosCommunication):
     """
     Manages and updates the Bebop2's sensor data via ROS topics, including
     odometry, GPS, altitude, attitude, speed, battery level, and WiFi signal.
@@ -78,7 +79,12 @@ class Sensors:
             '/bebop/states/common/CommonState/WifiSignalChanged',
             CommonCommonStateWifiSignalChanged, self._wifi_callback)
 
+    def _initialize_publishers(self) -> None:
+        """Initialize ROS publishers for sensor data."""
+        pass
+
     # Sensor callback methods
+
     def _odom_callback(self, data: Odometry) -> None:
         """Update odometry data if due."""
         if self.sensor_manager.should_update("odom"):
