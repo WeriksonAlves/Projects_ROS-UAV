@@ -1,5 +1,5 @@
 """
-CameraControl: This class handles camera operations for the Bebop drone,
+DroneCamera: This class handles camera operations for the Bebop drone,
 including capturing raw images, managing camera orientation, and controlling
 exposure settings.
 
@@ -36,7 +36,7 @@ from std_msgs.msg import Empty, Float32
 from typing import List, Dict
 
 
-class CameraControl(RosCommunication):
+class DroneCamera(RosCommunication):
     """
     Manages camera operations for the Bebop drone, including capturing images,
     managing camera orientation, and controlling exposure settings.
@@ -44,7 +44,7 @@ class CameraControl(RosCommunication):
 
     def __init__(self, drone_type: str, frequency: int = 30):
         """
-        Initializes the CameraControl class with publishers, subscribers,
+        Initializes the DroneCamera class with publishers, subscribers,
         and image handling configurations.
 
         :param drone_type: Type of the drone (e.g., "Bebop2").
@@ -63,9 +63,9 @@ class CameraControl(RosCommunication):
         try:
             self.pubs = self._initialize_publishers()
             self.subs = self._initialize_subscribers()
-            rospy.loginfo(f"CameraControl initialized for {self.drone_type}.")
+            rospy.loginfo(f"DroneCamera initialized for {self.drone_type}.")
         except rospy.ROSException as e:
-            rospy.logerr(f"Failed to initialize CameraControl: {e}")
+            rospy.logerr(f"Failed to initialize DroneCamera: {e}")
             quit()
 
     def _initialize_publishers(self) -> Dict[str, rospy.Publisher]:
@@ -177,9 +177,9 @@ class CameraControl(RosCommunication):
 class ParameterListener:
     """Listens to dynamic parameter updates for the Bebop camera."""
 
-    def __init__(self, camera: CameraControl) -> None:
+    def __init__(self, camera: DroneCamera) -> None:
         """
-        Initializes the ParameterListener with references to the CameraControl.
+        Initializes the ParameterListener with references to the DroneCamera.
         """
         self.camera = camera
         self.subscribers = {}

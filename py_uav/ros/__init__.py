@@ -1,4 +1,6 @@
-from .CameraControl import CameraControl
+from .DroneCamera import DroneCamera
 from .DroneControl import DroneControl
+from .DroneManagers import GPSStateManager, HealthMonitor, ParameterManager
 from .DroneMedia import DroneMedia
-from .Sensors import Sensors
+from .DroneSensors import DroneSensors
+from .DroneStates import FlightStateManager

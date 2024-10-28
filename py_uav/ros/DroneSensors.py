@@ -16,7 +16,6 @@ ROS Topics (10):
 """
 
 import rospy
-import time
 from ..interfaces.RosCommunication import RosCommunication
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import JointState, NavSatFix
@@ -31,7 +30,7 @@ from bebop_msgs.msg import (
 )
 
 
-class Sensors(RosCommunication):
+class DroneSensors(RosCommunication):
     """
     Manages and updates Bebop2's sensor data via ROS topics, including
     odometry, GPS, altitude, attitude, speed, battery level, and WiFi signal
