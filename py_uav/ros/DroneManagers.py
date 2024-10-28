@@ -11,6 +11,7 @@ ROS Topics (4):
 """
 
 import rospy
+import time
 from ..interfaces.RosCommunication import RosCommunication
 from dynamic_reconfigure.msg import ConfigDescription, Config
 from bebop_msgs.msg import (
@@ -33,6 +34,7 @@ class ParameterManager(RosCommunication):
         :param frequency: Frequency for command intervals in Hz (default: 30).
         """
         super().__init__(drone_type, frequency)
+        self.last_command_time = time.time()
         self.parameters = {}
 
     def _initialize_subscribers(self) -> None:
@@ -93,6 +95,7 @@ class GPSStateManager(RosCommunication):
         :param frequency: Frequency for command intervals in Hz (default: 30).
         """
         super().__init__(drone_type, frequency)
+        self.last_command_time = time.time()
         self.satellite_count = 0
 
     def _initialize_subscribers(self) -> None:
@@ -134,6 +137,7 @@ class HealthMonitor(RosCommunication):
         :param frequency: Frequency for command intervals in Hz (default: 30).
         """
         super().__init__(drone_type, frequency)
+        self.last_command_time = time.time()
         self.overheat_status = False
 
     def _initialize_subscribers(self) -> None:

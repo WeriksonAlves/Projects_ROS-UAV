@@ -20,7 +20,12 @@ class RosCommunication(ABC):
         :param drone_type: Type of the drone (e.g., "Bebop2").
         :param frequency: Frequency of command updates in Hz (default: 30).
         """
-        pass
+        self.drone_type = drone_type
+        self.command_interval = 1 / frequency
+
+        # Initialize subscribers and publishers for ROS communication
+        self._initialize_subscribers()
+        self._initialize_publishers()
 
     @abstractmethod
     def _initialize_subscribers(self) -> None:

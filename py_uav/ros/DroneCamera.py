@@ -51,9 +51,8 @@ class CameraControl(RosCommunication):
         :param drone_type: Type of the drone (e.g., "Bebop2").
         :param frequency: Frequency of camera operations (default: 30 Hz).
         """
-        self.drone_type = drone_type
-        self.period = 1 / frequency
-        self.last_update_time = time.time()
+        super().__init__(drone_type, frequency)
+        self.last_command_time = time.time()
 
         self.image_data = {key: None for key in ['image', 'compressed',
                                                  'depth', 'theora']}
@@ -104,13 +103,13 @@ class CameraControl(RosCommunication):
 
     def _time_to_update(self) -> bool:
         """
-        Checks if enough time has passed for the next camera operation update.
+        Checks if enough time has passed to send the next command update.
 
-        :return: True if it's time to update, else False.
+        :return: True if it's time to update, False otherwise.
         """
         current_time = time.time()
-        if current_time - self.last_update_time >= self.period:
-            self.last_update_time = current_time
+        if current_time - self.last_command_time >= self.command_interval:
+            self.last_command_time = current_time
             return True
         return False
 

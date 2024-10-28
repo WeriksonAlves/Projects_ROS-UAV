@@ -36,8 +36,7 @@ class DroneControl(RosCommunication):
         :param drone_type: Specifies the type of drone (e.g., "Bebop2").
         :param frequency: Command frequency in Hz (default: 30).
         """
-        self.drone_type = drone_type
-        self.command_interval = 1 / frequency
+        super().__init__(drone_type, frequency)
         self.last_command_time = time.time()
         self.vel_cmd = Twist()
         try:
