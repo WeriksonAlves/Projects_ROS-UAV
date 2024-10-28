@@ -48,6 +48,9 @@ class ParameterManager(RosCommunication):
             Config, self._parameter_update_callback
         )
 
+    def _initialize_publishers(self) -> None:
+        return super()._initialize_publishers()
+
     def _parameter_description_callback(self, msg: ConfigDescription) -> None:
         """
         Callback to handle parameter descriptions.
@@ -105,6 +108,9 @@ class GPSStateManager(RosCommunication):
             Ardrone3GPSStateNumberOfSatelliteChanged, self._gps_state_callback
         )
 
+    def _initialize_publishers(self) -> None:
+        return super()._initialize_publishers()
+
     def _gps_state_callback(self,
                             msg: Ardrone3GPSStateNumberOfSatelliteChanged
                             ) -> None:
@@ -146,6 +152,9 @@ class HealthMonitor(RosCommunication):
             "/bebop/states/common/OverHeatState/OverHeatChanged",
             CommonOverHeatStateOverHeatChanged, self._overheat_state_callback
         )
+
+    def _initialize_publishers(self) -> None:
+        return super()._initialize_publishers()
 
     def _overheat_state_callback(self, msg: CommonOverHeatStateOverHeatChanged
                                  ) -> None:

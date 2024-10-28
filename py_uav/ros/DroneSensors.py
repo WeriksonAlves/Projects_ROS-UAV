@@ -1,18 +1,18 @@
 """
-Purpose: This module manages sensor data from the Bebop drone, including
-GPS, attitude, speed, and battery levels.
+Sensors Module: Manages sensor data for Bebop2, including GPS, attitude,
+speed, altitude, battery, and WiFi signal.
 
-Topics (10):
-    /bebop/fix (GPS data)
-    /bebop/joint_states
-    /bebop/odom
-    /bebop/states/ardrone3/PilotingState/AltitudeChanged
-    /bebop/states/ardrone3/PilotingState/AttitudeChanged
-    /bebop/states/ardrone3/PilotingState/PositionChanged
-    /bebop/states/ardrone3/PilotingState/SpeedChanged
-    /bebop/states/ardrone3/PilotingState/FlyingStateChanged
-    /bebop/states/common/CommonState/BatteryStateChanged
-    /bebop/states/common/CommonState/WifiSignalChanged
+ROS Topics (10):
+    - /bebop/fix (GPS data)
+    - /bebop/joint_states
+    - /bebop/odom
+    - /bebop/states/ardrone3/PilotingState/AltitudeChanged
+    - /bebop/states/ardrone3/PilotingState/AttitudeChanged
+    - /bebop/states/ardrone3/PilotingState/PositionChanged
+    - /bebop/states/ardrone3/PilotingState/SpeedChanged
+    - /bebop/states/ardrone3/PilotingState/FlyingStateChanged
+    - /bebop/states/common/CommonState/BatteryStateChanged
+    - /bebop/states/common/CommonState/WifiSignalChanged
 """
 
 import rospy
@@ -33,31 +33,29 @@ from bebop_msgs.msg import (
 
 class Sensors(RosCommunication):
     """
-    Manages and updates the Bebop2's sensor data via ROS topics, including
-    odometry, GPS, altitude, attitude, speed, battery level, and WiFi signal.
+    Manages and updates Bebop2's sensor data via ROS topics, including
+    odometry, GPS, altitude, attitude, speed, battery level, and WiFi signal
+    strength.
     """
 
     def __init__(self, drone_type: str, frequency: int = 30):
         """
-        Initialize the Sensors class, setting up ROS subscribers.
+        Initializes Sensors class with ROS subscribers for each drone sensor.
 
-        :param drone_type: The type of the drone.
+        :param drone_type: Type of the drone.
         :param frequency: Sensor update frequency in Hz (default: 30 Hz).
         """
-        self.drone_type = drone_type
+        super().__init__(drone_type, frequency)
         self.sensor_manager = SensorDataManager(update_interval=1 / frequency)
 
-        try:
-            self._initialize_subscribers()
-            rospy.loginfo(f"Sensors initialized for {self.drone_type}.")
-        except rospy.ROSException as e:
-            rospy.logerr(f"Failed to initialize Sensors: {e}")
+        self._initialize_subscribers()
+        rospy.loginfo(f"Sensors initialized for {self.drone_type}.")
 
     def _initialize_subscribers(self) -> None:
-        """Set up ROS subscribers for each drone sensor topic."""
+        """Sets up ROS subscribers for sensor data topics."""
         rospy.Subscriber('/bebop/fix', NavSatFix, self._gps_callback)
         rospy.Subscriber('/bebop/joint_states', JointState,
-                         self.joint_states_callback)
+                         self._joint_states_callback)
         rospy.Subscriber('/bebop/odom', Odometry, self._odom_callback)
         rospy.Subscriber(
             '/bebop/states/ardrone3/PilotingState/AltitudeChanged',
@@ -83,90 +81,82 @@ class Sensors(RosCommunication):
             CommonCommonStateWifiSignalChanged, self._wifi_callback)
 
     def _initialize_publishers(self) -> None:
-        """Initialize ROS publishers for sensor data."""
-        pass
+        return super()._initialize_publishers()
 
     # Sensor callback methods
 
     def _odom_callback(self, data: Odometry) -> None:
-        """Update odometry data if due."""
-        if self.sensor_manager.should_update("odom"):
-            self.sensor_manager.update_data("odom", data)
+        """Updates odometry data when due."""
+        self.sensor_manager.update_sensor_if_due("odom", data)
 
     def _gps_callback(self, data: NavSatFix) -> None:
-        """Update GPS data if due."""
-        if self.sensor_manager.should_update("gps"):
-            self.sensor_manager.update_data("gps", data)
+        """Updates GPS data when due."""
+        self.sensor_manager.update_sensor_if_due("gps", data)
+
+    def _joint_states_callback(self, data: JointState) -> None:
+        """Updates joint state data when due."""
+        self.sensor_manager.update_sensor_if_due("joint_states", data)
 
     def _altitude_callback(self, data: Ardrone3PilotingStateAltitudeChanged
                            ) -> None:
-        """Update altitude data if due."""
-        if self.sensor_manager.should_update("altitude"):
-            self.sensor_manager.update_data("altitude", data.altitude)
+        """Updates altitude data when due."""
+        self.sensor_manager.update_sensor_if_due("altitude", data.altitude)
 
     def _attitude_callback(self, data: Ardrone3PilotingStateAttitudeChanged
                            ) -> None:
-        """Update attitude (roll, pitch, yaw) data if due."""
-        if self.sensor_manager.should_update("attitude"):
-            attitude_data = {'roll': data.roll, 'pitch': data.pitch,
-                             'yaw': data.yaw}
-            self.sensor_manager.update_data("attitude", attitude_data)
+        """Updates attitude data (roll, pitch, yaw) when due."""
+        attitude_data = {'roll': data.roll, 'pitch': data.pitch,
+                         'yaw': data.yaw}
+        self.sensor_manager.update_sensor_if_due("attitude", attitude_data)
 
     def _position_callback(self, data: Ardrone3PilotingStatePositionChanged
                            ) -> None:
-        """Update position data (latitude, longitude, altitude) if due."""
-        if self.sensor_manager.should_update("position"):
-            position_data = {'latitude': data.latitude,
-                             'longitude': data.longitude,
-                             'altitude': data.altitude}
-            self.sensor_manager.update_data("position", position_data)
+        """Updates position data (latitude, longitude, altitude) when due."""
+        position_data = {'latitude': data.latitude,
+                         'longitude': data.longitude,
+                         'altitude': data.altitude}
+        self.sensor_manager.update_sensor_if_due("position", position_data)
 
     def _speed_callback(self, data: Ardrone3PilotingStateSpeedChanged) -> None:
-        """Update speed data (vx, vy, vz) if due."""
-        if self.sensor_manager.should_update("speed"):
-            speed_data = {'vx': data.speedX, 'vy': data.speedY,
-                          'vz': data.speedZ}
-            self.sensor_manager.update_data("speed", speed_data)
+        """Updates speed data (vx, vy, vz) when due."""
+        speed_data = {'vx': data.speedX, 'vy': data.speedY, 'vz': data.speedZ}
+        self.sensor_manager.update_sensor_if_due("speed", speed_data)
 
     def _flying_state_callback(self,
                                data: Ardrone3PilotingStateFlyingStateChanged
                                ) -> None:
-        """Update flying state data if due."""
-        if self.sensor_manager.should_update("flying_state"):
-            self.sensor_manager.update_data("flying_state", data.state)
+        """Updates flying state when due."""
+        self.sensor_manager.update_sensor_if_due("flying_state", data.state)
 
     def _battery_callback(self, data: CommonCommonStateBatteryStateChanged
                           ) -> None:
-        """Update battery level data if due."""
-        if self.sensor_manager.should_update("battery_level"):
-            self.sensor_manager.update_data("battery_level", data.percent)
+        """Updates battery level when due."""
+        self.sensor_manager.update_sensor_if_due("battery_level", data.percent)
 
     def _wifi_callback(self, data: CommonCommonStateWifiSignalChanged) -> None:
-        """Update WiFi signal strength data if due."""
-        if self.sensor_manager.should_update("wifi_signal"):
-            self.sensor_manager.update_data("wifi_signal", data.rssi)
+        """Updates WiFi signal strength when due."""
+        self.sensor_manager.update_sensor_if_due("wifi_signal", data.rssi)
 
     def get_raw_sensor_data(self) -> dict:
         """
-        Retrieve the latest sensor data.
+        Retrieves the latest sensor data.
 
-        :return: A dictionary with current sensor readings.
+        :return: Dictionary with current sensor readings.
         """
         return self.sensor_manager.get_data()
 
 
 class SensorDataManager:
     """
-    Manages the sensor data and timestamps for Bebop2's sensors, controlling
-    the update frequency.
+    Manages sensor data storage and update intervals for Bebop2's sensors.
     """
 
     def __init__(self, update_interval: float):
         """
-        Initialize the sensor data manager with a specific update interval.
+        Initializes the data manager with a specified update interval.
 
         :param update_interval: Minimum time interval between updates in
-                                seconds.
+        seconds.
         """
         self.update_interval = update_interval
         self.data = {}
@@ -174,10 +164,10 @@ class SensorDataManager:
 
     def should_update(self, sensor_name: str) -> bool:
         """
-        Determine if the sensor data should be updated based on the interval.
+        Checks if enough time has passed to update a given sensor.
 
         :param sensor_name: Name of the sensor.
-        :return: True if enough time has passed, False otherwise.
+        :return: True if time interval requirement is met, False otherwise.
         """
         current_time = time.time()
         last_update = self.timestamps.get(sensor_name)
@@ -187,19 +177,20 @@ class SensorDataManager:
             return True
         return False
 
-    def update_data(self, sensor_name: str, data) -> None:
+    def update_sensor_if_due(self, sensor_name: str, data) -> None:
         """
-        Update the data for a specified sensor.
+        Updates sensor data if the update interval requirement is met.
 
         :param sensor_name: Name of the sensor.
-        :param data: Data to store for the sensor.
+        :param data: Sensor data to be stored.
         """
-        self.data[sensor_name] = data
+        if self.should_update(sensor_name):
+            self.data[sensor_name] = data
 
     def get_data(self) -> dict:
         """
-        Retrieve all stored sensor data.
+        Retrieves all stored sensor data.
 
-        :return: Dictionary containing the latest sensor data.
+        :return: Dictionary with the latest sensor data.
         """
         return self.data
