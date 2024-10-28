@@ -169,7 +169,7 @@ class SensorDataManager:
         :param sensor_name: Name of the sensor.
         :return: True if time interval requirement is met, False otherwise.
         """
-        current_time = time.time()
+        current_time = rospy.get_time()
         last_update = self.timestamps.get(sensor_name)
         if last_update is None or (current_time - last_update
                                    ) >= self.update_interval:

@@ -1,6 +1,6 @@
 """
-ParameterManager: Handles dynamic parameter descriptions and updates.
-GPSStateManager: Monitors GPS state for satellite count.
+ParameterManager: Manages dynamic parameter descriptions and updates.
+GPSStateManager: Tracks GPS state for satellite count.
 HealthMonitor: Monitors the drone's overheat status.
 
 ROS Topics (4):
@@ -11,7 +11,6 @@ ROS Topics (4):
 """
 
 import rospy
-import time
 from ..interfaces.RosCommunication import RosCommunication
 from dynamic_reconfigure.msg import ConfigDescription, Config
 from bebop_msgs.msg import (
@@ -34,8 +33,9 @@ class ParameterManager(RosCommunication):
         :param frequency: Frequency for command intervals in Hz (default: 30).
         """
         super().__init__(drone_type, frequency)
-        self.last_command_time = time.time()
+        self.last_command_time = rospy.get_time()
         self.parameters = {}
+        self._initialize_subscribers()
 
     def _initialize_subscribers(self) -> None:
         """Sets up subscribers for parameter-related topics."""
@@ -51,37 +51,34 @@ class ParameterManager(RosCommunication):
     def _initialize_publishers(self) -> None:
         return super()._initialize_publishers()
 
-    def _parameter_description_callback(self, msg: ConfigDescription) -> None:
+    def _is_time_to_command(self) -> bool:
         """
-        Callback to handle parameter descriptions.
+        Checks if enough time has passed since the last command.
 
-        :param msg: ConfigDescription message containing parameter
-                    descriptions.
+        :return: True if the command interval has passed; False otherwise.
         """
-        self.parameters['descriptions'] = msg
+        current_time = rospy.get_time()
+        if current_time - self.last_command_time >= self.command_interval:
+            self.last_command_time = current_time
+            return True
+        return False
+
+    def _parameter_description_callback(self, msg: ConfigDescription) -> None:
+        """Callback to handle parameter descriptions."""
+        if self._is_time_to_command():
+            self.parameters['descriptions'] = msg
 
     def _parameter_update_callback(self, msg: Config) -> None:
-        """
-        Callback to handle parameter updates.
-
-        :param msg: Config message containing parameter updates.
-        """
-        self.parameters['updates'] = msg
+        """Callback to handle parameter updates."""
+        if self._is_time_to_command():
+            self.parameters['updates'] = msg
 
     def get_parameter_descriptions(self) -> ConfigDescription:
-        """
-        Retrieves the latest parameter descriptions.
-
-        :return: ConfigDescription object with the latest descriptions.
-        """
+        """Retrieves the latest parameter descriptions."""
         return self.parameters.get('descriptions')
 
     def get_parameter_updates(self) -> Config:
-        """
-        Retrieves the latest parameter updates.
-
-        :return: Config object with the latest parameter updates.
-        """
+        """Retrieves the latest parameter updates."""
         return self.parameters.get('updates')
 
 
@@ -98,8 +95,9 @@ class GPSStateManager(RosCommunication):
         :param frequency: Frequency for command intervals in Hz (default: 30).
         """
         super().__init__(drone_type, frequency)
-        self.last_command_time = time.time()
+        self.last_command_time = rospy.get_time()
         self.satellite_count = 0
+        self._initialize_subscribers()
 
     def _initialize_subscribers(self) -> None:
         """Sets up subscriber for GPS satellite count updates."""
@@ -111,22 +109,27 @@ class GPSStateManager(RosCommunication):
     def _initialize_publishers(self) -> None:
         return super()._initialize_publishers()
 
+    def _is_time_to_command(self) -> bool:
+        """
+        Checks if enough time has passed since the last command.
+
+        :return: True if the command interval has passed; False otherwise.
+        """
+        current_time = rospy.get_time()
+        if current_time - self.last_command_time >= self.command_interval:
+            self.last_command_time = current_time
+            return True
+        return False
+
     def _gps_state_callback(self,
                             msg: Ardrone3GPSStateNumberOfSatelliteChanged
                             ) -> None:
-        """
-        Callback to handle GPS satellite count updates.
-
-        :param msg: Message with the number of satellites connected.
-        """
-        self.satellite_count = msg.numberOfSatellite
+        """Callback to handle GPS satellite count updates."""
+        if self._is_time_to_command():
+            self.satellite_count = msg.numberOfSatellite
 
     def get_satellite_count(self) -> int:
-        """
-        Retrieves the current number of satellites.
-
-        :return: Integer count of satellites.
-        """
+        """Retrieves the current number of satellites."""
         return self.satellite_count
 
 
@@ -143,8 +146,8 @@ class HealthMonitor(RosCommunication):
         :param frequency: Frequency for command intervals in Hz (default: 30).
         """
         super().__init__(drone_type, frequency)
-        self.last_command_time = time.time()
         self.overheat_status = False
+        self._initialize_subscribers()
 
     def _initialize_subscribers(self) -> None:
         """Sets up subscriber for overheat state updates."""
@@ -156,19 +159,24 @@ class HealthMonitor(RosCommunication):
     def _initialize_publishers(self) -> None:
         return super()._initialize_publishers()
 
+    def _is_time_to_command(self) -> bool:
+        """
+        Checks if enough time has passed since the last command.
+
+        :return: True if the command interval has passed; False otherwise.
+        """
+        current_time = rospy.get_time()
+        if current_time - self.last_command_time >= self.command_interval:
+            self.last_command_time = current_time
+            return True
+        return False
+
     def _overheat_state_callback(self, msg: CommonOverHeatStateOverHeatChanged
                                  ) -> None:
-        """
-        Callback to handle overheat status updates.
-
-        :param msg: Message indicating whether the drone is overheating.
-        """
-        self.overheat_status = msg.overheat
+        """Callback to handle overheat status updates."""
+        if self._is_time_to_command():
+            self.overheat_status = msg.overheat
 
     def is_overheating(self) -> bool:
-        """
-        Checks if the drone is currently overheating.
-
-        :return: True if overheating, False otherwise.
-        """
+        """Checks if the drone is currently overheating."""
         return self.overheat_status

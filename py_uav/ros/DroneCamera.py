@@ -26,7 +26,6 @@ Missing Topics (5):
 import cv2
 import numpy as np
 import rospy
-import time
 from ..interfaces.RosCommunication import RosCommunication
 from bebop_msgs.msg import Ardrone3CameraStateOrientation
 from cv_bridge import CvBridge
@@ -52,7 +51,7 @@ class CameraControl(RosCommunication):
         :param frequency: Frequency of camera operations (default: 30 Hz).
         """
         super().__init__(drone_type, frequency)
-        self.last_command_time = time.time()
+        self.last_command_time = rospy.get_time()
 
         self.image_data = {key: None for key in ['image', 'compressed',
                                                  'depth', 'theora']}
@@ -107,7 +106,7 @@ class CameraControl(RosCommunication):
 
         :return: True if it's time to update, False otherwise.
         """
-        current_time = time.time()
+        current_time = rospy.get_time()
         if current_time - self.last_command_time >= self.command_interval:
             self.last_command_time = current_time
             return True

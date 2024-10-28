@@ -2,7 +2,7 @@
 FlightStateManager Module: Manages flight state information for the Bebop
 drone, such as flat trim, navigate home state, and flight plan availability.
 
-Topics:
+ROS Topics (4):
     - /bebop/states/ardrone3/PilotingState/FlatTrimChanged
     - /bebop/states/ardrone3/PilotingState/NavigateHomeStateChanged
     - /bebop/states/common/FlightPlanState/AvailabilityStateChanged

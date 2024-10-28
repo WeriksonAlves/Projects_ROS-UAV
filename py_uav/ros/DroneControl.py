@@ -16,7 +16,6 @@ ROS Topics (10):
 """
 
 import rospy
-import time
 from ..interfaces.RosCommunication import RosCommunication
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Empty, UInt8, Bool
@@ -37,7 +36,7 @@ class DroneControl(RosCommunication):
         :param frequency: Command frequency in Hz (default: 30).
         """
         super().__init__(drone_type, frequency)
-        self.last_command_time = time.time()
+        self.last_command_time = rospy.get_time()
         self.vel_cmd = Twist()
         try:
             self.publishers = self._initialize_publishers()
@@ -94,7 +93,7 @@ class DroneControl(RosCommunication):
 
         :return: True if the command interval has passed; False otherwise.
         """
-        current_time = time.time()
+        current_time = rospy.get_time()
         if current_time - self.last_command_time >= self.command_interval:
             self.last_command_time = current_time
             return True
