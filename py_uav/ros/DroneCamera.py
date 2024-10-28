@@ -1,9 +1,9 @@
 """
-Purpose: This class handles camera operations for the Bebop drone, including
-capturing raw images, managing camera orientation, and controlling exposure
-settings.
+CameraControl: This class handles camera operations for the Bebop drone,
+including capturing raw images, managing camera orientation, and controlling
+exposure settings.
 
-Used Topics (10):
+ROS Topics (10):
     - /bebop/image_raw
     - /bebop/image_raw/compressed
     - /bebop/image_raw/compressed/parameter_descriptions

@@ -1,8 +1,8 @@
 """
-Purpose: Manages the Bebop drone's basic control operations, including
+DroneControl: Manages the Bebop drone's basic control operations, including
 takeoff, landing, movement, flips, and autopilot commands through ROS topics.
 
-Used Topics (10):
+ROS Topics (10):
     - /bebop/takeoff
     - /bebop/land
     - /bebop/cmd_vel

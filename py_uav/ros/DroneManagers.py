@@ -1,199 +1,161 @@
 """
-Purpose:  Subscribe to these topics, store parameter details,
-and provide methods to adjust or retrieve current parameter states dynamically.
+ParameterManager: Handles dynamic parameter descriptions and updates.
+GPSStateManager: Monitors GPS state for satellite count.
+HealthMonitor: Monitors the drone's overheat status.
 
-
-Topics (4):
-    /bebop/bebop_driver/parameter_descriptions
-    /bebop/bebop_driver/parameter_updates
-    /bebop/states/ardrone3/GPSState/NumberOfSatelliteChanged
-    /bebop/states/common/OverHeatState/OverHeatChanged
+ROS Topics (4):
+    - /bebop/bebop_driver/parameter_descriptions
+    - /bebop/bebop_driver/parameter_updates
+    - /bebop/states/ardrone3/GPSState/NumberOfSatelliteChanged
+    - /bebop/states/common/OverHeatState/OverHeatChanged
 """
 
 import rospy
 from ..interfaces.RosCommunication import RosCommunication
 from dynamic_reconfigure.msg import ConfigDescription, Config
-from bebop_msgs.msg import Ardrone3GPSStateNumberOfSatelliteChanged
-from bebop_msgs.msg import CommonOverHeatStateOverHeatChanged
+from bebop_msgs.msg import (
+    Ardrone3GPSStateNumberOfSatelliteChanged,
+    CommonOverHeatStateOverHeatChanged
+)
 
 
 class ParameterManager(RosCommunication):
     """
-    Manages drone parameter descriptions and updates for real-time adjustments.
+    Manages drone parameters, handling descriptions and updates for real-time
+    adjustments and retrieval.
     """
 
     def __init__(self, drone_type: str, frequency: int = 30):
         """
-        Initialize ParameterManager, setting up subscribers for parameter
-        topics.
+        Initializes ParameterManager with subscribers for parameter topics.
 
-        :param drone_type: Type of the drone.
-        :param frequency: Frequency of command checks.
+        :param drone_type: Specifies the type of drone.
+        :param frequency: Frequency for command intervals in Hz (default: 30).
         """
-        super().__init__()
-        self.drone_type = drone_type
-        self.command_interval = 1 / frequency
-        self.last_command_time = rospy.get_time()
+        super().__init__(drone_type, frequency)
         self.parameters = {}
 
-        self._initialize_subscribers()
-        self._initialize_publishers()
-
     def _initialize_subscribers(self) -> None:
-        """
-        Set up subscribers for drone parameter topics.
-        """
+        """Sets up subscribers for parameter-related topics."""
         rospy.Subscriber(
-            "/bebop/bebop_driver/parameter_descriptions", ConfigDescription,
-            self._parameter_description_callback)
-        rospy.Subscriber("/bebop/bebop_driver/parameter_updates", Config,
-                         self._parameter_update_callback)
-
-    def _initialize_publishers(self) -> None:
-        """
-        Placeholder for any publishers if required in the future.
-        """
-        pass
+            "/bebop/bebop_driver/parameter_descriptions",
+            ConfigDescription, self._parameter_description_callback
+        )
+        rospy.Subscriber(
+            "/bebop/bebop_driver/parameter_updates",
+            Config, self._parameter_update_callback
+        )
 
     def _parameter_description_callback(self, msg: ConfigDescription) -> None:
         """
-        Callback to process parameter descriptions.
+        Callback to handle parameter descriptions.
 
-        :param msg: Parameter descriptions message.
+        :param msg: ConfigDescription message containing parameter
+                    descriptions.
         """
-        # Store or update parameter descriptions
         self.parameters['descriptions'] = msg
 
     def _parameter_update_callback(self, msg: Config) -> None:
         """
-        Callback to process parameter updates.
+        Callback to handle parameter updates.
 
-        :param msg: Parameter updates message.
+        :param msg: Config message containing parameter updates.
         """
-        # Store or update parameter values
         self.parameters['updates'] = msg
 
     def get_parameter_descriptions(self) -> ConfigDescription:
         """
-        Retrieve the latest parameter descriptions.
+        Retrieves the latest parameter descriptions.
 
-        :return ConfigDescription: Latest parameter descriptions.
+        :return: ConfigDescription object with the latest descriptions.
         """
-        return self.parameters.get('descriptions', None)
+        return self.parameters.get('descriptions')
 
     def get_parameter_updates(self) -> Config:
         """
-        Retrieve the latest parameter updates.
+        Retrieves the latest parameter updates.
 
-        :return Config: Latest parameter updates.
+        :return: Config object with the latest parameter updates.
         """
-        return self.parameters.get('updates', None)
+        return self.parameters.get('updates')
 
 
 class GPSStateManager(RosCommunication):
     """
-    Monitors the GPS state, specifically the number of connected satellites.
+    Manages GPS state by monitoring the number of connected satellites.
     """
 
     def __init__(self, drone_type: str, frequency: int = 30):
         """
-        Initialize GPSStateManager with the drone type and command frequency.
+        Initializes GPSStateManager with a subscriber for GPS satellite count.
 
-        :param drone_type: Type of the drone.
-        :param frequency: Frequency of command checks.
+        :param drone_type: Specifies the type of drone.
+        :param frequency: Frequency for command intervals in Hz (default: 30).
         """
-        super().__init__()
-        self.drone_type = drone_type
-        self.command_interval = 1 / frequency
-        self.last_command_time = rospy.get_time()
+        super().__init__(drone_type, frequency)
         self.satellite_count = 0
 
-        self._initialize_subscribers()
-        self._initialize_publishers()
-
     def _initialize_subscribers(self) -> None:
-        """
-        Set up subscriber for GPS satellite count changes.
-        """
+        """Sets up subscriber for GPS satellite count updates."""
         rospy.Subscriber(
             "/bebop/states/ardrone3/GPSState/NumberOfSatelliteChanged",
-            Ardrone3GPSStateNumberOfSatelliteChanged, self._gps_state_callback)
-
-    def _initialize_publishers(self) -> None:
-        """
-        Placeholder for any publishers if required in the future.
-        """
-        pass
+            Ardrone3GPSStateNumberOfSatelliteChanged, self._gps_state_callback
+        )
 
     def _gps_state_callback(self,
                             msg: Ardrone3GPSStateNumberOfSatelliteChanged
                             ) -> None:
         """
-        Callback to process the number of satellites.
+        Callback to handle GPS satellite count updates.
 
-        :param msg: GPS satellite count message.
+        :param msg: Message with the number of satellites connected.
         """
-        # Update satellite count
         self.satellite_count = msg.numberOfSatellite
 
     def get_satellite_count(self) -> int:
         """
-        Retrieve the current number of satellites.
+        Retrieves the current number of satellites.
 
-        :return int: Current satellite count.
+        :return: Integer count of satellites.
         """
         return self.satellite_count
 
 
 class HealthMonitor(RosCommunication):
     """
-    Monitors the drone's health state, specifically overheat warnings.
+    Monitors the drone's health state, specifically tracking overheat status.
     """
 
     def __init__(self, drone_type: str, frequency: int = 30):
         """
-        Initialize HealthMonitor with the drone type and command frequency.
+        Initializes HealthMonitor with a subscriber for overheat state updates.
 
-        :param drone_type: Type of the drone.
-        :param frequency: Frequency of command checks.
+        :param drone_type: Specifies the type of drone.
+        :param frequency: Frequency for command intervals in Hz (default: 30).
         """
-        super().__init__()
-        self.drone_type = drone_type
-        self.command_interval = 1 / frequency
-        self.last_command_time = rospy.get_time()
+        super().__init__(drone_type, frequency)
         self.overheat_status = False
 
-        self._initialize_subscribers()
-        self._initialize_publishers()
-
     def _initialize_subscribers(self) -> None:
-        """
-        Set up subscriber for overheat state changes.
-        """
+        """Sets up subscriber for overheat state updates."""
         rospy.Subscriber(
             "/bebop/states/common/OverHeatState/OverHeatChanged",
-            CommonOverHeatStateOverHeatChanged, self._overheat_state_callback)
-
-    def _initialize_publishers(self) -> None:
-        """
-        Placeholder for any publishers if required in the future.
-        """
-        pass
+            CommonOverHeatStateOverHeatChanged, self._overheat_state_callback
+        )
 
     def _overheat_state_callback(self, msg: CommonOverHeatStateOverHeatChanged
                                  ) -> None:
         """
-        Callback to process overheat status.
+        Callback to handle overheat status updates.
 
-        :param msg: Overheat status message.
+        :param msg: Message indicating whether the drone is overheating.
         """
-        # Update overheat status
         self.overheat_status = msg.overheat
 
     def is_overheating(self) -> bool:
         """
-        Retrieve the current overheat status.
+        Checks if the drone is currently overheating.
 
-        :return bool: True if overheating, False otherwise.
+        :return: True if overheating, False otherwise.
         """
         return self.overheat_status
