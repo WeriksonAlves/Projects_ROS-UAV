@@ -2,9 +2,10 @@
 Purpose: This module manages sensor data from the Bebop drone, including
 GPS, attitude, speed, and battery levels.
 
-Topics (9):
-    /bebop/odom
+Topics (10):
     /bebop/fix (GPS data)
+    /bebop/joint_states
+    /bebop/odom
     /bebop/states/ardrone3/PilotingState/AltitudeChanged
     /bebop/states/ardrone3/PilotingState/AttitudeChanged
     /bebop/states/ardrone3/PilotingState/PositionChanged
@@ -18,7 +19,7 @@ import rospy
 import time
 from ..interfaces.RosCommunication import RosCommunication
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import NavSatFix
+from sensor_msgs.msg import JointState, NavSatFix
 from bebop_msgs.msg import (
     Ardrone3PilotingStateAltitudeChanged,
     Ardrone3PilotingStateAttitudeChanged,
@@ -54,8 +55,10 @@ class Sensors(RosCommunication):
 
     def _initialize_subscribers(self) -> None:
         """Set up ROS subscribers for each drone sensor topic."""
-        rospy.Subscriber('/bebop/odom', Odometry, self._odom_callback)
         rospy.Subscriber('/bebop/fix', NavSatFix, self._gps_callback)
+        rospy.Subscriber('/bebop/joint_states', JointState,
+                         self.joint_states_callback)
+        rospy.Subscriber('/bebop/odom', Odometry, self._odom_callback)
         rospy.Subscriber(
             '/bebop/states/ardrone3/PilotingState/AltitudeChanged',
             Ardrone3PilotingStateAltitudeChanged, self._altitude_callback)
