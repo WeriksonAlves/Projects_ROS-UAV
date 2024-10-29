@@ -1,11 +1,10 @@
-from .commandsandsensors.SensorsParser import SensorsParser
+from .commandsandsensors.SensorsParser import SensorManager
 from .ros.DroneCamera import DroneCamera
 from .ros.DroneControl import DroneControl
 from .ros.DroneManagers import GPSStateManager, HealthMonitor, ParameterManager
 from .ros.DroneMedia import DroneMedia
-from .ros.DroneSensors import DroneSensors
 from .ros.DroneStates import FlightStateManager
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 import os
 import rospy
@@ -48,7 +47,7 @@ class Bebop2:
         self.health = HealthMonitor(drone_type)
         self.params = ParameterManager(drone_type)
         self.media = DroneMedia(drone_type)
-        self.sensors = SensorsParser(drone_type)
+        self.sensors = SensorManager(drone_type)
 
     # Sensor Management Methods
 
