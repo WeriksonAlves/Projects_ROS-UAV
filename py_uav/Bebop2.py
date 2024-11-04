@@ -1,6 +1,8 @@
 import os
 import numpy as np
 import rospy
+from .commandsandsensors.DroneCommandManager import DroneCommandManager
+from .commandsandsensors.DroneSensorManager import DroneSensorManager
 from .ros.DroneCamera import DroneCamera
 from .ros.DroneControl import DroneControl
 from .ros.DroneManagers import GPSStateManager, HealthMonitor, ParameterManager
@@ -58,6 +60,10 @@ class Bebop2:
         self.sensors = DroneSensors(self.drone_type, self.frequency)
         self.states = FlightStateManager(self.drone_type, self.frequency)
 
+        self.command_manager = DroneCommandManager(self.control, self.sensors,
+                                                   self.state_map)
+        self.sensor_manager = DroneSensorManager(self.sensors)
+
     @staticmethod
     def _initialize_state_map() -> dict:
         """Defines state mapping for the drone."""
@@ -101,17 +107,7 @@ class Bebop2:
         self.sensors.set_user_callback_function(callback, args)
 
     def update_sensors(self, raw_data) -> None:
-        """
-        Updates sensor values based on received raw data.
-
-        :param raw_data: Raw data from the drone's sensors.
-        """
-        sensor_list = self.sensors.extract_sensor_values(raw_data)
-        for sensor_name, sensor_value, sensor_enum, _ in sensor_list:
-            if sensor_name:
-                self.sensors.update(sensor_name, sensor_value, sensor_enum)
-            else:
-                rospy.logwarn("Received an empty sensor name.")
+        self.sensor_manager.update_sensors(raw_data)
 
     # Drone Control Methods
 
