@@ -1,11 +1,36 @@
+import rospy
+from .DroneSensorManager import DroneSensorManager
+from typing import Callable, Any, Dict, Optional, Tuple
+
 
 class DroneInformation:
+    """
+    Manages general and main sensor information for the drone, including
+    user-defined callbacks.
+    """
+
     def __init__(self):
-        self.sensors_dict = dict()
-        self.RelativeMoveEnded = False
-        self.CameraMoveEnded_tilt = False
-        self.CameraMoveEnded_pan = False
+        """
+        Initializes the DroneInformation class, setting up sensor data and
+        callback configurations.
+        """
+        self.sensor_parser = DroneSensorManager()
+        self.user_callback_function: Optional[Callable] = None
+        self.user_callback_function_args: Optional[Tuple] = None
+
+        self.sensors_dict: Dict[str, Any] = {}
+        self.initialize_status_flags()
+
         self.flying_state = "unknown"
+        self.battery = 100  # Default to full battery
+
+    def initialize_status_flags(self):
+        """
+        Initializes status flags for various drone properties that indicate
+        changes in configuration or state.
+        """
+        self.RelativeMoveEnded = False
+        self.CameraMoveEnded = {"tilt": False, "pan": False}
         self.flat_trim_changed = False
         self.max_altitude_changed = False
         self.max_distance_changed = False
@@ -13,7 +38,7 @@ class DroneInformation:
         self.max_tilt_changed = False
         self.max_pitch_roll_rotation_speed_changed = False
         self.max_vertical_speed_changed = False
-        self.max_rotation_speed = False
+        self.max_rotation_speed_changed = False
         self.hull_protection_changed = False
         self.outdoor_mode_changed = False
         self.picture_format_changed = False
@@ -26,120 +51,122 @@ class DroneInformation:
         self.video_framerate_changed = False
         self.video_resolutions_changed = False
 
-        # default to full battery
-        self.battery = 100
-
-        # this is optionally set elsewhere
-        self.user_callback_function = None
-
-    def set_user_callback_function(self, function, args):
+    def set_user_callback_function(self, function: Callable, args: Tuple
+                                   ) -> None:
         """
-        Sets the user callback function (called everytime the sensors are updated)
+        Sets a user-defined callback function, which will be executed whenever
+        the sensor data is updated.
 
-        :param function: name of the user callback function
-        :param args: arguments (tuple) to the function
-        :return:
+        :param function: The callback function to be triggered after updates.
+        :param args: Arguments to pass to the callback function.
         """
         self.user_callback_function = function
         self.user_callback_function_args = args
 
-    def update(self, sensor_name, sensor_value, sensor_enum):
-        if (sensor_name is None):
-            print("Error empty sensor")
+    def update(self, sensor_name: str, sensor_value: Any,
+               sensor_enum: Dict[Tuple[str, str], Any]) -> None:
+        """
+        Updates sensor information based on sensor name, value, and optional
+        enum mapping.
+
+        :param sensor_name: The name of the sensor to update.
+        :param sensor_value: The new value of the sensor.
+        :param sensor_enum: Dictionary mapping sensor enums to readable values.
+        """
+        if not sensor_name:
+            rospy.logwarn("Error: Empty sensor name provided.")
             return
 
-
+        # Check if sensor uses an enum for its values
         if (sensor_name, "enum") in sensor_enum:
-            # grab the string value
-            if (sensor_value is None or sensor_value > len(sensor_enum[(sensor_name, "enum")])):
-                value = "UNKNOWN_ENUM_VALUE"
-            else:
-                enum_value = sensor_enum[(sensor_name, "enum")][sensor_value]
-                value = enum_value
-
-            self.sensors_dict[sensor_name] = value
-
+            value = self.get_enum_value(sensor_name, sensor_value, sensor_enum)
         else:
-            # regular sensor
-            self.sensors_dict[sensor_name] = sensor_value
+            value = sensor_value
 
-        # some sensors are saved outside the dictionary for internal use (they are also in the dictionary)
-        if (sensor_name == "FlyingStateChanged_state"):
-            self.flying_state = self.sensors_dict["FlyingStateChanged_state"]
+        self.sensors_dict[sensor_name] = value
+        self.update_internal_state(sensor_name, value)
+        self.trigger_user_callback()
 
-        if (sensor_name == "PilotingState_FlatTrimChanged"):
-            self.flat_trim_changed = True
+    def get_enum_value(self, sensor_name: str, sensor_value: Any,
+                       sensor_enum: Dict[Tuple[str, str], Any]) -> str:
+        """
+        Retrieves the enum string for a given sensor value, or returns
+        'UNKNOWN_ENUM_VALUE' if out of range.
 
-        if (sensor_name == "moveByEnd_dX"):
-            self.RelativeMoveEnded = True
+        :param sensor_name: The name of the sensor with an enum.
+        :param sensor_value: The index of the enum value.
+        :param sensor_enum: Dictionary mapping sensor enums to readable values.
+        :return: The string representation of the enum or 'UNKNOWN_ENUM_VALUE'
+                 if not found.
+        """
+        if sensor_value is None or sensor_value >= len(sensor_enum.get(
+                (sensor_name, "enum"), [])):
+            return "UNKNOWN_ENUM_VALUE"
+        return sensor_enum[(sensor_name, "enum")][sensor_value]
 
-        if (sensor_name == "OrientationV2_tilt"):
-            self.CameraMoveEnded_tilt = True
+    def update_internal_state(self, sensor_name: str, sensor_value: Any
+                              ) -> None:
+        """
+        Updates internal state flags based on specific sensor name-value pairs.
 
-        if (sensor_name == "OrientationV2_pan"):
-            self.CameraMoveEnded_pan = True
+        :param sensor_name: The name of the sensor being updated.
+        :param sensor_value: The updated value of the sensor.
+        """
+        state_flags = {
+            "FlyingStateChanged_state": ("flying_state", sensor_value),
+            "PilotingState_FlatTrimChanged": ("flat_trim_changed", True),
+            "moveByEnd_dX": ("RelativeMoveEnded", True),
+            "OrientationV2_tilt": ("CameraMoveEnded", {"tilt": True}),
+            "OrientationV2_pan": ("CameraMoveEnded", {"pan": True}),
+            "MaxAltitudeChanged_current": ("max_altitude_changed", True),
+            "MaxDistanceChanged_current": ("max_distance_changed", True),
+            "NoFlyOverMaxDistanceChanged_shouldNotFlyOver": (
+                "no_fly_over_max_distance", True),
+            "MaxTiltChanged_current": ("max_tilt_changed", True),
+            "MaxPitchRollRotationSpeedChanged_current": (
+                "max_pitch_roll_rotation_speed_changed", True),
+            "MaxVerticalSpeedChanged_current": ("max_vertical_speed_changed",
+                                                True),
+            "MaxRotationSpeedChanged_current": ("max_rotation_speed_changed",
+                                                True),
+            "HullProtectionChanged_present": ("hull_protection_changed", True),
+            "OutdoorChanged_present": ("outdoor_mode_changed", True),
+            "BatteryStateChanged_battery_percent": ("battery", sensor_value),
+            "PictureFormatChanged_type": ("picture_format_changed", True),
+            "AutoWhiteBalanceChanged_type": ("auto_white_balance_changed",
+                                             True),
+            "ExpositionChanged_value": ("exposition_changed", True),
+            "SaturationChanged_value": ("saturation_changed", True),
+            "TimelapseChanged_enabled": ("timelapse_changed", True),
+            "VideoStabilizationModeChanged_mode": (
+                "video_stabilization_changed", True),
+            "VideoRecordingModeChanged_mode": ("video_recording_changed",
+                                               True),
+            "VideoFramerateChanged_framerate": ("video_framerate_changed",
+                                                True),
+            "VideoResolutionsChanged_type": ("video_resolutions_changed",
+                                             True),
+        }
 
-        if (sensor_name == "MaxAltitudeChanged_current"):
-            self.max_altitude_changed = True
+        if sensor_name in state_flags:
+            attr_name, attr_value = state_flags[sensor_name]
+            if isinstance(attr_value, dict):
+                self.CameraMoveEnded.update(attr_value)  # For tilt/pan updates
+            else:
+                setattr(self, attr_name, attr_value)
 
-        if (sensor_name == "MaxDistanceChanged_current"):
-            self.max_distance_changed = True
+    def trigger_user_callback(self) -> None:
+        """
+        Triggers the user-defined callback function if set, passing the
+        specified arguments.
+        """
+        if self.user_callback_function:
+            self.user_callback_function(*self.user_callback_function_args)
 
-        if (sensor_name == "NoFlyOverMaxDistanceChanged_shouldNotFlyOver"):
-            self.no_fly_over_max_distance_changed = True
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the drone's sensor data.
 
-        if (sensor_name == "MaxTiltChanged_current"):
-            self.max_tilt_changed = True
-
-        if (sensor_name == "MaxPitchRollRotationSpeedChanged_current"):
-            self.max_pitch_roll_rotation_speed_changed = True
-
-        if (sensor_name == "MaxVerticalSpeedChanged_current"):
-            self.max_vertical_speed_changed = True
-
-        if (sensor_name == "MaxRotationSpeedChanged_current"):
-            self.max_rotation_speed_changed = True
-
-        if (sensor_name == "HullProtectionChanged_present"):
-            self.hull_protection_changed = True
-
-        if (sensor_name == "OutdoorChanged_present"):
-            self.outdoor_mode_changed = True
-
-        if (sensor_name == "BatteryStateChanged_battery_percent"):
-            self.battery = sensor_value
-
-        if (sensor_name == "PictureFormatChanged_type"):
-            self.picture_format_changed = True
-
-        if (sensor_name == "AutoWhiteBalanceChanged_type"):
-            self.auto_white_balance_changed = True
-
-        if (sensor_name == "ExpositionChanged_value"):
-            self.exposition_changed = True
-
-        if (sensor_name == "SaturationChanged_value"):
-            self.saturation_changed = True
-
-        if (sensor_name == "TimelapseChanged_enabled"):
-            self.timelapse_changed = True
-
-        if (sensor_name == "VideoStabilizationModeChanged_mode"):
-            self.video_stabilization_changed = True
-
-        if (sensor_name == "VideoRecordingModeChanged_mode"):
-            self.video_recording_changed = True
-
-        if (sensor_name == "VideoFramerateChanged_framerate"):
-            self.video_framerate_changed = True
-
-        if (sensor_name == "VideoResolutionsChanged_type"):
-            self.video_resolutions_changed = True
-
-        # call the user callback if it isn't None
-        if (self.user_callback_function is not None):
-            self.user_callback_function(self.user_callback_function_args)
-
-    def __str__(self):
-        str = "Bebop sensors: %s" % self.sensors_dict
-        return str
+        :return: Formatted string of sensor data.
+        """
+        return f"Bebop sensors: {self.sensors_dict}"

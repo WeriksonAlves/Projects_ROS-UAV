@@ -2,6 +2,7 @@ import os
 import numpy as np
 import rospy
 from .commandsandsensors.DroneCommandManager import DroneCommandManager
+from .commandsandsensors.DroneInformation import DroneInformation
 from .commandsandsensors.DroneSensorManager import DroneSensorManager
 from .ros.DroneCamera import DroneCamera
 from .ros.DroneControl import DroneControl
@@ -57,11 +58,11 @@ class Bebop2:
         self.health = HealthMonitor(self.drone_type, self.frequency)
         self.params = ParameterManager(self.drone_type, self.frequency)
         self.media = DroneMedia(self.drone_type, self.frequency)
-        self.sensors = DroneSensors(self.drone_type, self.frequency)
         self.states = FlightStateManager(self.drone_type, self.frequency)
 
         self.command_manager = DroneCommandManager(self.control, self.sensors,
                                                    self.state_map)
+        self.sensors = DroneInformation(self.drone_type, self.frequency)
         self.sensor_manager = DroneSensorManager(self.sensors)
 
     @staticmethod
