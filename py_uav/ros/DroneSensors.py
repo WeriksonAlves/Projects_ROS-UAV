@@ -40,7 +40,8 @@ class DroneSensors(RosCommunication):
 
     def __init__(self, drone_type: str, frequency: int = 30):
         """
-        Initializes the DroneSensors class with ROS subscribers for each drone sensor.
+        Initializes the DroneSensors class with ROS subscribers for each drone
+        sensor.
 
         :param drone_type: Type of the drone.
         :param frequency: Sensor update frequency in Hz (default: 30 Hz).
@@ -216,7 +217,8 @@ class SensorDataManager:
         """Checks if enough time has passed to update a given sensor."""
         current_time = rospy.get_time()
         last_update = self.timestamps.get(sensor_name)
-        if last_update is None or (current_time - last_update) >= self.update_interval:
+        if last_update is None or (current_time - last_update
+                                   ) >= self.update_interval:
             self.timestamps[sensor_name] = current_time
             return True
         return False
