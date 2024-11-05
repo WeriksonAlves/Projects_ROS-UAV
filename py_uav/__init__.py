@@ -1,7 +1,7 @@
 from .Bebop2 import Bebop2
 
-from .commandsandsensors.BebopSensors import BebopSensors
 from .commandsandsensors.DroneCommandManager import DroneCommandManager
+from .commandsandsensors.DroneInformation import DroneInformation
 from .commandsandsensors.DroneSensorManager import DroneSensorManager
 from .commandsandsensors.DroneSetConfig import DroneSetConfig
 

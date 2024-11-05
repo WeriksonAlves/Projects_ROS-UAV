@@ -1,5 +1,5 @@
 
-class BebopSensors:
+class DroneInformation:
     def __init__(self):
         self.sensors_dict = dict()
         self.RelativeMoveEnded = False

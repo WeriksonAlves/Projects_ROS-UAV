@@ -1,4 +1,4 @@
-class DroneSetConfig:
+class DroneSettings:
 
     def set_video_stream_mode(self, mode='low_latency'):
         """
