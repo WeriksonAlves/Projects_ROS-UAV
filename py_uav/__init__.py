@@ -1,9 +1,6 @@
-from .Bebop2 import Bebop2
-
 from .commandsandsensors.DroneCommandManager import DroneCommandManager
-from .commandsandsensors.DroneInformation import DroneInformation
 from .commandsandsensors.DroneSensorManager import DroneSensorManager
-from .commandsandsensors.DroneSetConfig import DroneSetConfig
+from .commandsandsensors.DroneSettings import DroneSettings
 
 from .interfaces.RosCommunication import RosCommunication
 
@@ -14,5 +11,6 @@ from .ros.DroneMedia import DroneMedia
 from .ros.DroneSensors import DroneSensors
 from .ros.DroneStates import FlightStateManager
 
-from .utils.Bebop2Indoors import Bebop2Indoors
 from .utils.MyFunctions import MyFunctions
+
+from .Bebop2 import Bebop2
