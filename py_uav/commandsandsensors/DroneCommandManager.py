@@ -96,7 +96,8 @@ class DroneCommandManager:
         :param vertical: Vertical input (-1 to 1).
         """
         if not all(-1 <= param <= 1 for param in [roll, pitch, yaw, vertical]):
-            rospy.logwarn("Move command ignored: Inputs must be between -1 and 1.")
+            rospy.logwarn(
+                "Move command ignored: Inputs must be between -1 and 1.")
             return
         if self._is_in_state('H'):
             self._execute_if_allowed(self.control.move, roll, pitch, yaw,
