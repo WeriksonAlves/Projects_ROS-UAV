@@ -149,3 +149,146 @@ class DroneCommandManager:
             self._execute_if_allowed(self.camera.capture_snapshot)
         else:
             rospy.logwarn("Capture aborted: Drone is in emergency mode.")
+
+    def set_video_stream_mode(self, mode: str) -> None:
+        """
+        Sets the video stream mode.
+        :param mode: Video stream mode.
+        """
+        # Assume there's a ROS service or command for setting video stream
+        # mode.
+        rospy.loginfo(f"Setting video stream mode to {mode}")
+        # Implement the actual ROS service or command call here
+
+    def set_max_altitude(self, altitude: float) -> None:
+        """
+        Sets the maximum altitude for the drone.
+        :param altitude: Maximum altitude in meters.
+        """
+        rospy.loginfo(f"Setting max altitude to {altitude} meters")
+        # Implement the actual ROS service or command call here
+
+    def set_max_distance(self, distance: float) -> None:
+        """
+        Sets the maximum flight distance.
+        :param distance: Maximum distance in meters.
+        """
+        rospy.loginfo(f"Setting max distance to {distance} meters")
+        # Implement the actual ROS service or command call here
+
+    def enable_geofence(self, enable: int) -> None:
+        """
+        Enables or disables the geofence.
+        :param enable: 1 to enable, 0 to disable.
+        """
+        rospy.loginfo(
+            f"Setting geofence to {'enabled' if enable else 'disabled'}")
+        # Implement the actual ROS service or command call here
+
+    def set_max_tilt(self, tilt: float) -> None:
+        """
+        Sets the maximum tilt for the drone.
+        :param tilt: Maximum tilt in degrees.
+        """
+        rospy.loginfo(f"Setting max tilt to {tilt} degrees")
+        # Implement the actual ROS service or command call here
+
+    def set_max_tilt_rotation_speed(self, speed: float) -> None:
+        """
+        Sets the maximum tilt rotation speed.
+        :param speed: Tilt rotation speed in degrees per second.
+        """
+        rospy.loginfo(
+            f"Setting max tilt rotation speed to {speed} degrees/second")
+        # Implement the actual ROS service or command call here
+
+    def set_max_vertical_speed(self, speed: float) -> None:
+        """
+        Sets the maximum vertical speed.
+        :param speed: Vertical speed in meters per second.
+        """
+        rospy.loginfo(f"Setting max vertical speed to {speed} m/s")
+        # Implement the actual ROS service or command call here
+
+    def set_max_rotation_speed(self, speed: float) -> None:
+        """
+        Sets the maximum rotation speed.
+        :param speed: Rotation speed in degrees per second.
+        """
+        rospy.loginfo(f"Setting max rotation speed to {speed} degrees/second")
+        # Implement the actual ROS service or command call here
+
+    def set_picture_format(self, format_type: str) -> None:
+        """
+        Sets the picture format.
+        :param format_type: Picture format.
+        """
+        rospy.loginfo(f"Setting picture format to {format_type}")
+        # Implement the actual ROS service or command call here
+
+    def set_white_balance(self, balance_type: str) -> None:
+        """
+        Sets the white balance.
+        :param balance_type: White balance type.
+        """
+        rospy.loginfo(f"Setting white balance to {balance_type}")
+        # Implement the actual ROS service or command call here
+
+    def set_exposition(self, value: float) -> None:
+        """
+        Sets the exposition level.
+        :param value: Exposition adjustment.
+        """
+        rospy.loginfo(f"Setting exposition to {value}")
+        # Implement the actual ROS service or command call here
+
+    def set_saturation(self, value: int) -> None:
+        """
+        Sets the saturation level.
+        :param value: Saturation adjustment.
+        """
+        rospy.loginfo(f"Setting saturation to {value}")
+        # Implement the actual ROS service or command call here
+
+    def set_timelapse(self, enable: int, interval: int) -> None:
+        """
+        Enables or disables timelapse and sets interval.
+        :param enable: 1 to enable, 0 to disable.
+        :param interval: Interval in seconds.
+        """
+        rospy.loginfo(
+            f"Setting timelapse to {'enabled' if enable else 'disabled'}, "
+            f"interval {interval} seconds")
+        # Implement the actual ROS service or command call here
+
+    def set_video_stabilization(self, mode: str) -> None:
+        """
+        Sets video stabilization mode.
+        :param mode: Stabilization mode.
+        """
+        rospy.loginfo(f"Setting video stabilization mode to {mode}")
+        # Implement the actual ROS service or command call here
+
+    def set_video_recording(self, mode: str) -> None:
+        """
+        Sets video recording mode.
+        :param mode: Recording mode.
+        """
+        rospy.loginfo(f"Setting video recording mode to {mode}")
+        # Implement the actual ROS service or command call here
+
+    def set_video_framerate(self, framerate: str) -> None:
+        """
+        Sets the video framerate.
+        :param framerate: Framerate setting.
+        """
+        rospy.loginfo(f"Setting video framerate to {framerate}")
+        # Implement the actual ROS service or command call here
+
+    def set_video_resolutions(self, resolution: str) -> None:
+        """
+        Sets the video resolution.
+        :param resolution: Resolution setting.
+        """
+        rospy.loginfo(f"Setting video resolution to {resolution}")
+        # Implement the actual ROS service or command call here
