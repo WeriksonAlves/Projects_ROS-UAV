@@ -70,7 +70,7 @@ class DroneSensorManager:
         Initializes various status flags for drone configuration and state
         changes.
         """
-        status_flags = [
+        self.status_flags = [
             "RelativeMoveEnded", "flat_trim_changed", "max_altitude_changed",
             "max_distance_changed", "no_fly_over_max_distance",
             "max_tilt_changed", "max_pitch_roll_rotation_speed_changed",
@@ -82,7 +82,7 @@ class DroneSensorManager:
             "video_framerate_changed", "video_resolutions_changed"
         ]
         self.CameraMoveEnded = {"tilt": False, "pan": False}
-        for flag in status_flags:
+        for flag in self.status_flags:
             setattr(self, flag, False)
 
     def set_user_callback(self, function: Callable, args: Tuple) -> None:
@@ -178,7 +178,7 @@ class DroneSensorManager:
         :param sensor_name: The name of the sensor being updated.
         :param sensor_value: The updated value.
         """
-        state_flags = {
+        self.state_flags = {
             "FlyingStateChanged_state": ("flying_state", sensor_value),
             "PilotingState_FlatTrimChanged": ("flat_trim_changed", True),
             "moveByEnd_dX": ("RelativeMoveEnded", True),
@@ -191,8 +191,8 @@ class DroneSensorManager:
             # Add more mappings as needed
         }
 
-        if sensor_name in state_flags:
-            attr_name, attr_value = state_flags[sensor_name]
+        if sensor_name in self.state_flags:
+            attr_name, attr_value = self.state_flags[sensor_name]
             if isinstance(attr_value, dict):
                 # Handle dict updates for tilt/pan
                 self.CameraMoveEnded.update(attr_value)

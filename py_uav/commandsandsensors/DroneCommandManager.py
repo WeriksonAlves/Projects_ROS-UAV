@@ -88,8 +88,8 @@ class DroneCommandManager:
         """
         if self._validate_direction_inputs(roll, pitch, yaw, vertical
                                            ) and self._is_in_state('H'):
-            self._execute_if_allowed(self.control.move, roll, pitch, yaw,
-                                     vertical)
+            self._execute_if_allowed(self.control.move, roll, pitch, vertical,
+                                     yaw)
         else:
             rospy.loginfo(
                 "Move command ignored: Invalid state or input values.")
