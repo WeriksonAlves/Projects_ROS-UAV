@@ -1,3 +1,4 @@
+import numpy as np
 import rospy
 from typing import Callable
 from .DroneSensorManager import DroneSensorManager
@@ -7,8 +8,8 @@ from ..ros.DroneControl import DroneControl
 
 class DroneCommandManager:
     """
-    Manages drone commands, verifying the drone's state to ensure commands
-    are executed only when appropriate.
+    Manages commands for a drone, ensuring they are executed appropriately
+    based on the drone's state and sensor data.
     """
 
     def __init__(self, sensors: DroneSensorManager, state_map: dict,
@@ -17,31 +18,24 @@ class DroneCommandManager:
         Initializes the DroneCommandManager with control, sensor, and state
         mappings.
 
-        :param sensors: Instance providing current drone state.
-        :param state_map: Mapping of state keys to state descriptions.
-        :param drone_type: Type of the drone.
-        :param frequency: Command update frequency in Hz (default: 30 Hz).
+        :param sensors: DroneSensorManager instance providing the current
+                        drone state.
+        :param state_map: Mapping of state keys to descriptive state strings.
+        :param drone_type: Type of the drone as a string.
+        :param frequency: Command update frequency in Hz (default is 30 Hz).
         """
-        self.camera = self._initialize_camera(drone_type, frequency)
-        self.control = self._initialize_control(drone_type, frequency)
         self.sensors = sensors
         self.state_map = state_map
         self.command_interval = 1 / frequency
         self.last_command_time = rospy.get_time()
 
-    @staticmethod
-    def _initialize_camera(drone_type: str, frequency: int) -> DroneCamera:
-        """Initializes the camera for the specified drone type."""
-        return DroneCamera(drone_type, frequency)
-
-    @staticmethod
-    def _initialize_control(drone_type: str, frequency: int) -> DroneControl:
-        """Initializes the control for the specified drone type."""
-        return DroneControl(drone_type, frequency)
+        # Initialize camera and control for the specified drone type
+        self.camera = DroneCamera(drone_type=drone_type, frequency=frequency)
+        self.control = DroneControl(drone_type=drone_type, frequency=frequency)
 
     def _is_in_state(self, state_key: str) -> bool:
         """
-        Checks if the drone's current state matches the specified state.
+        Checks if the drone's current state matches the specified state key.
 
         :param state_key: Key representing the desired state.
         :return: True if the current state matches; False otherwise.
@@ -54,101 +48,120 @@ class DroneCommandManager:
         Executes a command if the drone is not in an emergency state and
         adheres to the command interval.
 
-        :param command_func: Command function to be executed.
+        :param command_func: Callable command function.
         :param args: Arguments for the command function.
         """
         current_time = rospy.get_time()
         if current_time - self.last_command_time < self.command_interval:
             rospy.logwarn("Command ignored: Command interval limit reached.")
             return
-
-        self.last_command_time = current_time
-
         if not self._is_in_state('E'):
             command_func(*args)
+            self.last_command_time = current_time
         else:
             rospy.logwarn("Command aborted: Drone is in emergency mode.")
-
-    # Drone Control Commands
 
     def takeoff(self) -> None:
         """Commands the drone to take off if it is in a landed state."""
         if self._is_in_state('L'):
             self._execute_if_allowed(self.control.takeoff)
         else:
-            rospy.loginfo("Takeoff ignored: Drone is not in landed state.")
+            rospy.loginfo("Takeoff ignored: Drone is not in a landed state.")
 
     def land(self) -> None:
         """Commands the drone to land if it is in a hovering state."""
         if self._is_in_state('H'):
             self._execute_if_allowed(self.control.land)
         else:
-            rospy.loginfo("Land ignored: Drone is not in hovering state.")
+            rospy.loginfo("Land ignored: Drone is not in a hovering state.")
 
-    def move(self, roll: float, pitch: float, yaw: float, vertical: float
-             ) -> None:
+    def fly_direct(self, roll: float, pitch: float, yaw: float,
+                   vertical: float) -> None:
         """
-        Moves the drone with specified directional inputs if it is hovering.
+        Commands the drone to move in specified directions if in a hovering
+        state.
 
-        :param roll: Roll input (-1 to 1).
-        :param pitch: Pitch input (-1 to 1).
-        :param yaw: Yaw input (-1 to 1).
-        :param vertical: Vertical input (-1 to 1).
+        :param roll: Roll input between -1 and 1.
+        :param pitch: Pitch input between -1 and 1.
+        :param yaw: Yaw input between -1 and 1.
+        :param vertical: Vertical input between -1 and 1.
         """
-        if not all(-1 <= param <= 1 for param in [roll, pitch, yaw, vertical]):
-            rospy.logwarn(
-                "Move command ignored: Inputs must be between -1 and 1.")
-            return
-        if self._is_in_state('H'):
+        if self._validate_direction_inputs(roll, pitch, yaw, vertical
+                                           ) and self._is_in_state('H'):
             self._execute_if_allowed(self.control.move, roll, pitch, yaw,
                                      vertical)
         else:
-            rospy.loginfo("Move ignored: Drone is not in hovering state.")
+            rospy.loginfo(
+                "Move command ignored: Invalid state or input values.")
 
     def flip(self, direction: str) -> None:
         """
         Commands the drone to perform a flip in a specified direction if it is
         hovering.
 
-        :param direction: Direction for the flip ('forward', 'backward',
-                          'left', 'right').
+        :param direction: Flip direction ('forward', 'backward', 'left', or
+                          'right').
         """
-        valid_directions = {'forward', 'backward', 'left', 'right'}
-        if direction.lower() not in valid_directions:
-            rospy.logwarn(f"Invalid flip direction '{direction}'. Choose from"
-                          f" {valid_directions}.")
-            return
-        if self._is_in_state('H'):
+        if direction.lower() in {'forward', 'backward', 'left', 'right'
+                                 } and self._is_in_state('H'):
             self._execute_if_allowed(self.control.flip, direction)
         else:
-            rospy.loginfo("Flip ignored: Drone is not in hovering state.")
+            rospy.logwarn(f"Invalid or ignored flip direction: '{direction}'.")
 
-    # Camera Commands
+    def move_relative(self, dx: float, dy: float, dz: float, dyaw: float,
+                      velocity: float) -> None:
+        """
+        Moves the drone relative to its current position if it is hovering.
+
+        :param dx: Relative x-axis movement in meters.
+        :param dy: Relative y-axis movement in meters.
+        :param dz: Relative z-axis movement in meters.
+        :param dyaw: Relative yaw rotation in radians.
+        :param velocity: Movement velocity.
+        """
+        target_position = np.array([dx, dy, dz, dyaw])
+        while np.linalg.norm(target_position) > 0.05:
+            control_signal = np.tanh(np.dot(self.control.Kp, target_position))
+            self._execute_if_allowed(self.control.move, *control_signal)
+            self.sensors.update_all_sensors()
+            target_position -= self._calculate_position_error(target_position)
 
     def adjust_camera_orientation(self, tilt: float, pan: float) -> None:
         """
-        Adjusts the camera tilt and pan if the drone is not in an emergency
+        Adjusts the camera orientation if the drone is not in an emergency
         state.
 
-        :param tilt: Tilt adjustment (-1 to 1).
-        :param pan: Pan adjustment (-1 to 1).
+        :param tilt: Tilt adjustment (-30 to 30).
+        :param pan: Pan adjustment (-30 to 30).
         """
-        if not (-1 <= tilt <= 1 and -1 <= pan <= 1):
-            rospy.logwarn("Camera orientation adjustment ignored: Tilt and pan"
-                          " must be between -1 and 1.")
-            return
-        if not self._is_in_state('E'):
+        if -30 <= tilt <= 30 and -30 <= pan <= 30 and not self._is_in_state('E'
+                                                                            ):
             self.camera.control_camera_orientation(tilt, pan)
         else:
-            rospy.logwarn(
-                "Camera adjustment aborted: Drone is in emergency mode.")
+            rospy.logwarn("Camera orientation adjustment ignored due to state"
+                          "or input values.")
 
     def take_picture(self) -> None:
-        """Captures a picture with the drone's camera."""
+        """
+        Captures a picture with the drone's camera if it is not in an
+        emergency state.
+        """
         if not self._is_in_state('E'):
             self._execute_if_allowed(self.camera.capture_snapshot)
-        else:
-            rospy.logwarn("Capture aborted: Drone is in emergency mode.")
+
+    def _calculate_position_error(self, target_position) -> np.ndarray:
+        """Calculates position error for relative movements."""
+        position = np.array(self.sensors.get_sensor_data('position'))
+        orientation = np.array(self.sensors.get_sensor_data('orientation'))
+        current_position = np.concatenate((position, orientation[2]))
+        return target_position - current_position
+
+    @staticmethod
+    def _validate_direction_inputs(*args) -> bool:
+        """Validates direction inputs are within the range -1 to 1."""
+        return all(-1 <= param <= 1 for param in args)
+
+    # Additional methods for setting drone parameters
 
     def set_video_stream_mode(self, mode: str) -> None:
         """

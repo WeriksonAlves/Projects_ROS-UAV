@@ -15,6 +15,7 @@ ROS Topics (10):
     - /bebop/autoflight/stop
 """
 
+import numpy as np
 import rospy
 from ..interfaces.RosCommunication import RosCommunication
 from geometry_msgs.msg import Twist
@@ -44,6 +45,27 @@ class DroneControl(RosCommunication):
         except rospy.ROSException as e:
             rospy.logerr(f"DroneControl initialization failed: {e}")
             quit()
+
+        # Initialize proportional gain matrix (Kp) for position control
+        self.Kp = self._initialize_kp()
+
+    def _initialize_kp(self) -> np.ndarray:
+        """
+        Sets up the proportional gain matrix (Kp) based on the drone type.
+
+        :return: Proportional gain matrix (4x4 matrix).
+        """
+        # Adjust these values based on the specific drone type and tuning
+        # requirements
+        if self.drone_type == 'basic_drone':
+            # Basic tuning values
+            return np.diag([1.0, 1.0, 1.0, 0.5])
+        elif self.drone_type == 'advanced_drone':
+            # More aggressive tuning for advanced drones
+            return np.diag([1.5, 1.5, 1.2, 0.7])
+        else:
+            # Default matrix for undefined types
+            return np.diag([1.0, 1.0, 1.0, 1.0])
 
     def _initialize_subscribers(self) -> None:
         """Sets up ROS subscribers; currently no subscribers are required."""
