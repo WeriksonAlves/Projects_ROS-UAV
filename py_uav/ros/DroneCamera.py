@@ -139,8 +139,8 @@ class DroneCamera(RosCommunication):
         if self._time_to_update():
             self.orientation.update({'tilt': data.tilt, 'pan': data.pan})
 
-    def _save_image(self, data, filename: str, img_type: str,
-                    use_cv_bridge: bool = False) -> None:
+    def save_image(self, data, filename: str, img_type: str,
+                   use_cv_bridge: bool = False) -> None:
         """
         Saves image data from the ROS topic using the appropriate decoding.
 
@@ -172,6 +172,14 @@ class DroneCamera(RosCommunication):
     def adjust_exposure(self, exposure: float) -> None:
         """Adjusts the camera exposure setting."""
         self.pubs['set_exposure'].publish(Float32(data=exposure))
+
+    def release(self) -> None:
+        """Releases the camera resources."""
+        self.image_data.clear()
+        self.success_flags.clear()
+        self.orientation = {'tilt': 0.0, 'pan': 0.0}
+        self.control_camera_orientation(0.0, 0.0)
+        self.param_listener.subscribers.clear()
 
 
 class ParameterListener:
