@@ -54,7 +54,8 @@ class DroneCommandManager:
             return
 
         start_time = rospy.get_time()
-        while not self.sensor_manager.is_hovering() and rospy.get_time() - start_time < timeout:
+        while (not self.sensor_manager.is_hovering()) and (
+                rospy.get_time() - start_time < timeout):
             rospy.loginfo("Attempting safe takeoff.")
             self.drone_control.takeoff()
             rospy.sleep(0.1)
