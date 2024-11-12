@@ -42,6 +42,14 @@ class DroneCamera(RosCommunication):
     managing camera orientation, and controlling exposure settings.
     """
 
+    _instance = None  # Class-level variable to hold the singleton instance
+
+    def __new__(cls, *args, **kwargs):
+        """Override __new__ to implement the Singleton pattern."""
+        if cls._instance is None:
+            cls._instance = super(DroneCamera, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, drone_type: str, frequency: int = 30):
         """
         Initializes the DroneCamera class with publishers, subscribers,
@@ -50,6 +58,9 @@ class DroneCamera(RosCommunication):
         :param drone_type: Type of the drone (e.g., "Bebop2").
         :param frequency: Frequency of camera operations (default: 30 Hz).
         """
+        if hasattr(self, '_initialized') and self._initialized:
+            return  # Prevent reinitialization if instance already exists
+
         super().__init__(drone_type, frequency)
         self.last_command_time = rospy.get_time()
 
@@ -67,6 +78,8 @@ class DroneCamera(RosCommunication):
         except rospy.ROSException as e:
             rospy.logerr(f"Failed to initialize DroneCamera: {e}")
             quit()
+
+        self._initialized = True  # Mark the instance as initialized
 
     def _initialize_publishers(self) -> Dict[str, rospy.Publisher]:
         """Initialize ROS publishers for camera commands."""
@@ -115,23 +128,23 @@ class DroneCamera(RosCommunication):
     def _process_raw_image(self, data: Image) -> None:
         """Processes raw image data from the ROS topic."""
         if self._time_to_update():
-            self._save_image(data, "image_raw.png", 'image',
-                             use_cv_bridge=True)
+            self._process_image(data, "image_raw.png", 'image',
+                                use_cv_bridge=True)
 
     def _process_compressed_image(self, data: CompressedImage) -> None:
         """Processes compressed image data from the ROS topic."""
         if self._time_to_update():
-            self._save_image(data, "compressed.png", 'compressed')
+            self._process_image(data, "compressed.png", 'compressed')
 
     def _process_compressed_depth_image(self, data: CompressedImage) -> None:
         """Processes compressed depth image data from the ROS topic."""
         if self._time_to_update():
-            self._save_image(data, "depth.png", 'depth')
+            self._process_image(data, "depth.png", 'depth')
 
     def _process_theora_image(self, data: CompressedImage) -> None:
         """Processes Theora-encoded image data from the ROS topic."""
         if self._time_to_update():
-            self._save_image(data, "theora.png", 'theora')
+            self._process_image(data, "theora.png", 'theora')
 
     def _update_orientation(self, data: Ardrone3CameraStateOrientation
                             ) -> None:
@@ -139,8 +152,8 @@ class DroneCamera(RosCommunication):
         if self._time_to_update():
             self.orientation.update({'tilt': data.tilt, 'pan': data.pan})
 
-    def save_image(self, data, filename: str, img_type: str,
-                   use_cv_bridge: bool = False) -> None:
+    def _process_image(self, data, img_type: str, use_cv_bridge: bool = False
+                       ) -> None:
         """
         Saves image data from the ROS topic using the appropriate decoding.
 
@@ -165,9 +178,15 @@ class DroneCamera(RosCommunication):
         control_msg.angular.z = pan
         self.pubs['camera_control'].publish(control_msg)
 
-    def capture_snapshot(self) -> None:
-        """Captures a snapshot with the drone's camera."""
+    def capture_snapshot(self, frame: np.ndarray, filename: str) -> None:
+        """
+        Captures a snapshot using the drone's camera and saves it to a file.
+
+        :param frame: The image frame to be saved.
+        :param filename: The filename to save the snapshot.
+        """
         self.pubs['snapshot'].publish(Empty())
+        cv2.imwrite(filename, frame)
 
     def adjust_exposure(self, exposure: float) -> None:
         """Adjusts the camera exposure setting."""

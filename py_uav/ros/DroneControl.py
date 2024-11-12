@@ -28,6 +28,14 @@ class DroneControl(RosCommunication):
     landing, movement, and autopilot controls via ROS publishers.
     """
 
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        """Override __new__ to implement the Singleton pattern."""
+        if cls._instance is None:
+            cls._instance = super(DroneControl, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, drone_type: str, frequency: int = 30):
         """
         Initializes the DroneControl class with required ROS publishers
@@ -36,6 +44,9 @@ class DroneControl(RosCommunication):
         :param drone_type: Specifies the type of drone (e.g., "Bebop2").
         :param frequency: Command frequency in Hz (default: 30).
         """
+        if hasattr(self, '_initialized') and self._initialized:
+            return
+
         super().__init__(drone_type, frequency)
         self.last_command_time = rospy.get_time()
         self.vel_cmd = Twist()
@@ -48,6 +59,8 @@ class DroneControl(RosCommunication):
 
         # Initialize proportional gain matrix (Kp) for position control
         self.Kp = self._initialize_kp()
+
+        self._initialized = True
 
     def _initialize_kp(self) -> np.ndarray:
         """

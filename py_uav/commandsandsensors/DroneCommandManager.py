@@ -1,8 +1,8 @@
-# DroneCommandManager.py
 import numpy as np
 import rospy
-from ..ros.DroneControl import DroneControl
 from .DroneSensorManager import DroneSensorManager
+from ..ros.DroneCamera import DroneCamera
+from ..ros.DroneControl import DroneControl
 
 
 class DroneCommandManager:
@@ -11,10 +11,20 @@ class DroneCommandManager:
     management.
     """
 
-    def __init__(self, drone_control: DroneControl,
+    def __init__(self, drone_type: str, frequency: int,
                  sensor_manager: DroneSensorManager) -> None:
-        self.drone_control = drone_control
+        """
+        Initializes the DroneCommandManager.
+
+        :param drone_type: Type of the drone.
+        :param frequency: Frequency of the drone's control loop.
+        :param sensor_manager: Sensor manager for the drone.
+        """
+        self.drone_camera = DroneCamera(drone_type, frequency)
+        self.drone_control = DroneControl(drone_type, frequency)
         self.sensor_manager = sensor_manager
+
+    # Drone commands
 
     def takeoff(self) -> None:
         """Commands the drone to take off, with validation."""
@@ -133,7 +143,7 @@ class DroneCommandManager:
         :param delta_y: Change in y-axis.
         :param delta_z: Change in z-axis.
         :param delta_yaw: Change in yaw.
-        :param power: Power of the movement [0 to 100].
+        :param power: Power of the movement [0 to 1].
         """
         if self.sensor_manager.is_emergency():
             rospy.loginfo("Cannot move: Emergency mode!")
@@ -177,3 +187,31 @@ class DroneCommandManager:
 
         self.drone_control.move(0.0, 0.0, 0.0, 0.0)
         rospy.loginfo("The drone has stopped moving!")
+
+    # Camera commands
+
+    def adjust_camera_orientation(self, tilt: float, pan: float,
+                                  pitch_comp: float = 0.0,
+                                  yaw_comp: float = 0.0) -> None:
+        """
+        Adjusts the camera orientation by setting its tilt and pan.
+
+        :param tilt: Vertical movement in degrees.
+        :param pan: Horizontal movement in degrees.
+        :param pitch_comp: Optional pitch compensation for the drone.
+        :param yaw_comp: Optional yaw compensation for the drone.
+        """
+        self.drone_camera.control_camera_orientation(tilt - pitch_comp,
+                                                     pan - yaw_comp)
+
+    def adjust_camera_exposure(self, exposure: float) -> None:
+        """
+        Adjusts the camera's exposure setting.
+
+        :param exposure: Exposure value to set for the camera [-3 to 3].
+        """
+        self.drone_camera.adjust_exposure(exposure)
+
+    def release_camera(self) -> None:
+        """Releases the camera resources used by the drone."""
+        self.drone_camera.release()

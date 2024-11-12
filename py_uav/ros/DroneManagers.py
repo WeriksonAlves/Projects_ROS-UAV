@@ -25,6 +25,13 @@ class ParameterManager(RosCommunication):
     adjustments and retrieval.
     """
 
+    _instance = None  # Instância singleton
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(ParameterManager, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, drone_type: str, frequency: int = 30):
         """
         Initializes ParameterManager with subscribers for parameter topics.
@@ -32,10 +39,15 @@ class ParameterManager(RosCommunication):
         :param drone_type: Specifies the type of drone.
         :param frequency: Frequency for command intervals in Hz (default: 30).
         """
+        if hasattr(self, '_initialized') and self._initialized:
+            return
+
         super().__init__(drone_type, frequency)
         self.last_command_time = rospy.get_time()
         self.parameters = {}
         self._initialize_subscribers()
+
+        self._initialized = True
 
     def _initialize_subscribers(self) -> None:
         """Sets up subscribers for parameter-related topics."""
@@ -87,6 +99,13 @@ class GPSStateManager(RosCommunication):
     Manages GPS state by monitoring the number of connected satellites.
     """
 
+    _instance = None  # Instância singleton
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(GPSStateManager, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, drone_type: str, frequency: int = 30):
         """
         Initializes GPSStateManager with a subscriber for GPS satellite count.
@@ -94,10 +113,15 @@ class GPSStateManager(RosCommunication):
         :param drone_type: Specifies the type of drone.
         :param frequency: Frequency for command intervals in Hz (default: 30).
         """
+        if hasattr(self, '_initialized') and self._initialized:
+            return
+
         super().__init__(drone_type, frequency)
         self.last_command_time = rospy.get_time()
         self.satellite_count = 0
         self._initialize_subscribers()
+
+        self._initialized = True
 
     def _initialize_subscribers(self) -> None:
         """Sets up subscriber for GPS satellite count updates."""
@@ -138,6 +162,13 @@ class HealthMonitor(RosCommunication):
     Monitors the drone's health state, specifically tracking overheat status.
     """
 
+    _instance = None  # Instância singleton
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(HealthMonitor, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, drone_type: str, frequency: int = 30):
         """
         Initializes HealthMonitor with a subscriber for overheat state updates.
@@ -145,9 +176,14 @@ class HealthMonitor(RosCommunication):
         :param drone_type: Specifies the type of drone.
         :param frequency: Frequency for command intervals in Hz (default: 30).
         """
+        if hasattr(self, '_initialized') and self._initialized:
+            return
+
         super().__init__(drone_type, frequency)
         self.overheat_status = False
         self._initialize_subscribers()
+
+        self._initialized = True
 
     def _initialize_subscribers(self) -> None:
         """Sets up subscriber for overheat state updates."""

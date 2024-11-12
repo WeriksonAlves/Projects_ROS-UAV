@@ -21,6 +21,13 @@ class FlightStateManager(RosCommunication):
     state.
     """
 
+    _instance = None  # Instância singleton
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(FlightStateManager, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, drone_type: str, frequency: int = 30):
         """
         Initializes publishers and subscribers for managing flight state
@@ -30,12 +37,17 @@ class FlightStateManager(RosCommunication):
         :param frequency: Frequency for checking state updates (in Hz, default:
                           30 Hz).
         """
+        if hasattr(self, '_initialized') and self._initialized:
+            return
+
         super().__init__(drone_type, frequency)
         self.command_interval = 1 / frequency
         self.last_command_time = rospy.get_time()
 
         self._initialize_subscribers()
         self._initialize_state_variables()
+
+        self._initialized = True
 
     def _initialize_subscribers(self) -> None:
         """Sets up ROS subscribers for flight state topics."""

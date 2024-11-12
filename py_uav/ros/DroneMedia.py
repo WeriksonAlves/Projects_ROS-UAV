@@ -20,6 +20,14 @@ class DroneMedia(RosCommunication):
     snapshot capture, and handling media state changes.
     """
 
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        """Override __new__ to implement the Singleton pattern."""
+        if cls._instance is None:
+            cls._instance = super(DroneMedia, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, drone_type: str, frequency: int = 30):
         """
         Initializes publishers and subscribers for managing drone media
@@ -28,6 +36,9 @@ class DroneMedia(RosCommunication):
         :param drone_type: The type of drone being used.
         :param frequency: Frequency for media command updates (default: 30 Hz).
         """
+        if hasattr(self, '_initialized') and self._initialized:
+            return
+
         super().__init__(drone_type, frequency)
         self.last_command_time = rospy.get_time()
 
@@ -38,6 +49,8 @@ class DroneMedia(RosCommunication):
 
         self._initialize_publishers()
         self._initialize_subscribers()
+
+        self._initialized = True
 
     def _initialize_subscribers(self) -> None:
         """Sets up subscribers for media state updates."""

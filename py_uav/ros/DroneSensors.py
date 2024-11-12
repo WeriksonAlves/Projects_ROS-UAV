@@ -38,6 +38,13 @@ class DroneSensors(RosCommunication):
     odometry, GPS, altitude, attitude, speed, battery level, and WiFi signal.
     """
 
+    _instance = None  # Instância singleton
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(DroneSensors, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, drone_type: str, frequency: int = 30):
         """
         Initializes the DroneSensors class with ROS subscribers for each drone
@@ -46,11 +53,16 @@ class DroneSensors(RosCommunication):
         :param drone_type: Type of the drone.
         :param frequency: Sensor update frequency in Hz (default: 30 Hz).
         """
+        if hasattr(self, '_initialized') and self._initialized:
+            return
+
         super().__init__(drone_type, frequency)
         self.sensor_manager = SensorDataManager(update_interval=1 / frequency)
 
         self._setup_subscribers()
         rospy.loginfo(f"Sensors initialized for {drone_type}.")
+
+        self._initialized = True
 
     def _setup_subscribers(self) -> None:
         """Configures ROS subscribers for each sensor topic."""
