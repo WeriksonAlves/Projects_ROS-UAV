@@ -3,7 +3,7 @@ from .DroneSensorManager import DroneSensorManager
 from .DroneCommandManager import DroneCommandManager
 
 
-class DroneStateManager:
+class DroneSettingManager:
     """
     Class to manage the settings of the drone, including video, altitude, tilt,
     and more.

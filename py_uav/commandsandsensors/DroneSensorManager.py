@@ -61,10 +61,13 @@ class DroneSensorManager:
         """Returns the most recent sensor data."""
         return self.sensor_data
 
-    def check_connection(self) -> None:
+    def check_connection(self, value: int = 20) -> None:
         """Check that the drone is connected to the network."""
-        self.status_flags['connected'] = os.system(
-            f"ping -c 1 {self.ip_address}") == 0
+        if os.system(f"ping -c 1 {self.ip_address}") == 0:
+            if self.sensor_data['wifi_signal'] > -value:
+                self.status_flags['connected'] = True
+            else:
+                self.status_flags['connected'] = False
 
     # Control methods
 

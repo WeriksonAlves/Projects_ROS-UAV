@@ -74,6 +74,30 @@ class DroneCommandManager:
                 return
         rospy.loginfo("Drone failed to take off.")
 
+    def safe_land(self, timeout: float = 3.0) -> None:
+        """
+        Safely lands the drone, with a timeout.
+
+        :param timeout: Maximum time to attempt landing.
+        """
+        if self.sensor_manager.is_emergency():
+            rospy.loginfo("Cannot land: Emergency state.")
+            return
+        if not self.sensor_manager.is_hovering():
+            rospy.loginfo("Safe land ignored. Drone not hovering.")
+            return
+
+        start_time = rospy.get_time()
+        while (not self.sensor_manager.is_landed()) and (
+                rospy.get_time() - start_time < timeout):
+            rospy.loginfo("Attempting safe landing.")
+            self.drone_control.land()
+            rospy.sleep(0.1)
+            if self.sensor_manager.get_sensor_data()['altitude'] < 0.15:
+                rospy.loginfo("Drone safely landed.")
+                return
+        rospy.loginfo("Drone failed to land.")
+
     def emergency_stop(self) -> None:
         """Stops the drone immediately in an emergency situation."""
         if self.sensor_manager.is_emergency():
