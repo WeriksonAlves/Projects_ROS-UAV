@@ -1,7 +1,6 @@
 import cv2
 import threading
 import time
-import os
 from typing import Callable, Optional
 from pathlib import Path
 from py_uav.Bebop2 import Bebop2
