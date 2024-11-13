@@ -1,3 +1,18 @@
+"""
+Purpose: Demo of the Bebop2 drone vision using the py_uav library.
+
+This script demonstrates how to capture images from the drone's camera in real
+time and save them to the local file system.
+
+The script connects to the drone, starts the video stream, and captures images
+from the drone's camera. The images are saved to the local file system.
+
+The script also demonstrates how to adjust the camera's pan and tilt angles
+using the pan_tilt_camera method.
+
+To run the script, the Bebop2 drone must be connected to the computer via
+Wi-Fi. The drone's IP address must be set to
+"""
 import time
 import cv2
 from py_uav import (

@@ -224,10 +224,15 @@ class Bebop2:
             rospy.loginfo(f"Error reading image: {e}")
             return False, np.array([])
 
+    def start_video_stream(self) -> bool:
+        """Starts the video stream from the drone's camera."""
+        return self.sensor_manager.check_camera()
+
     # Helper Methods
-    def _normalize_command(self, value: float) -> float:
+    def _normalize_command(self, value: float, min: float = -1,
+                           max: float = 1, prop: float = 100) -> float:
         """Normalizes command values to the range [-1, 1]."""
-        return max(min(value / 100.0, 1.0), -1.0)
+        return max(min(value / prop, max), min)
 
     def _execute_command(self, command: Callable, action_description: str
                          ) -> None:

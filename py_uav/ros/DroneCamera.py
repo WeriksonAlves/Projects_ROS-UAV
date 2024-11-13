@@ -172,9 +172,6 @@ class DroneCamera(RosCommunication):
             self.image_data[img_type] = image
             self.success_flags[img_type] = image is not None
 
-            # if image is not None:
-            #     cv2.imwrite(
-            #         os.path.join(self.base_filename, img_type + '.png'), image)
         except (cv2.error, ValueError) as e:
             rospy.logerr(f"Failed to process {img_type} image: {e}")
 
