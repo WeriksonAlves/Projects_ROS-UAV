@@ -32,7 +32,8 @@ class DroneVision:
         self.image_index = 1
 
         # Path configuration for images
-        self.image_dir = Path(os.path.dirname(__file__)) / "images"
+        main = Path(os.path.dirname(__file__))
+        self.image_dir = main / "images" / "internal"
         self._prepare_image_directory()
 
         # Video buffer for frame storage
@@ -107,17 +108,13 @@ class DroneVision:
         Buffers frames from the video stream, storing each in the buffer.
         """
         while self.vision_running:
-            image_path = self.image_dir / f"image_{self.image_index:03}.png"
-
-            # Ensure image exists and load it into the buffer
-            if image_path.exists() and image_path.is_file():
-                img = cv2.imread(str(image_path))
-                if img is not None:
-                    self.image_index += 1
-                    self.buffer[self.buffer_index] = img
-                    self.buffer_index = (
-                        self.buffer_index + 1) % self.buffer_size
-                    self.new_frame = True
+            img = self.drone_object.sensor_manager.drone_camera.image_data['compressed']
+            if img is not None:
+                self.image_index += 1
+                self.buffer[self.buffer_index] = img
+                self.buffer_index = (
+                    self.buffer_index + 1) % self.buffer_size
+                self.new_frame = True
             else:
                 time.sleep(0.01)  # Short pause to avoid busy-waiting
 
@@ -140,10 +137,10 @@ class DroneVision:
         print("Closing video stream.")
         # self.drone_object.stop_video_stream()
 
-        # Terminate any active video processing
-        if hasattr(self, 'ffmpeg_process'):
-            self.ffmpeg_process.kill()
-            self.ffmpeg_process.terminate()
+        # # Terminate any active video processing
+        # if hasattr(self, 'ffmpeg_process'):
+        #     self.ffmpeg_process.kill()
+        #     self.ffmpeg_process.terminate()
         time.sleep(1)
 
         if self.vision_thread.is_alive():

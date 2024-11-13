@@ -15,19 +15,31 @@ class UserVision:
         self.index = 0
         self.vision = vision
 
-    def save_pictures(self, _):
+    def save_pictures(self):
         """
         Saves the last valid image from the drone's camera.
         """
         img = self.vision.get_latest_frame()
         if img is not None:
-            filename = f"image_{self.index:06d}.png"
+            filename = f"Projects_ROS-UAV/py_uav/images/image_{self.index:04d}.png"
             cv2.imwrite(filename, img)
             self.index += 1
+
+    def imshow_pictures(self):
+        """
+        Displays the last valid image from the drone's camera.
+        """
+        img = self.vision.get_latest_frame()
+        if img is not None:
+            cv2.imshow("Drone Camera", img)
+            cv2.waitKey(1)
 
 
 # Initializes the Bebop2ROS object for drone control
 bebop = Bebop2()
+
+# Battery level
+print(f"Battery level: {bebop.sensor_manager.sensor_data['battery_level']}%")
 
 # Connect to drone
 if bebop.check_connection():
@@ -38,7 +50,7 @@ if bebop.check_connection():
     user_vision = UserVision(bebop_vision)
 
     # Define the callback function for saving images
-    bebop_vision.set_user_callback(user_vision.save_pictures)
+    bebop_vision.set_user_callback(user_vision.imshow_pictures)
 
     # Start video streaming
     if bebop_vision.open_camera():

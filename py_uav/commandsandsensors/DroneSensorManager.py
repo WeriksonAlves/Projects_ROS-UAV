@@ -19,7 +19,7 @@ class DroneSensorManager:
         :param sensors: DroneSensors object.
         :param ip_address: IP address of the drone.
         """
-        self.drone_camera = DroneCamera(drone_type, frequency)
+        self.drone_camera = DroneCamera(drone_type, main_dir, frequency)
         self.drone_control = DroneControl(drone_type, frequency)
         self.sensors = DroneSensors(drone_type, frequency)
         self.ip_address = ip_address
@@ -33,7 +33,7 @@ class DroneSensorManager:
     def _initialize_sensor_data(self) -> Dict[str, object]:
         """Initializes the sensor data dictionary with default values."""
         return {
-            'altitude': 0.0, 'attitude': [0.0] * 3, 'battery': 100,
+            'altitude': 0.0, 'attitude': [0.0] * 3, 'battery_level': 100,
             'camera': None, 'gps': [0.0] * 3, 'image': None,
             'orientation': [0.0] * 3, 'position': [0.0] * 3,
             'speed_angular': [0.0] * 3, 'speed_linear': [0.0] * 3,
@@ -61,13 +61,15 @@ class DroneSensorManager:
         """Returns the most recent sensor data."""
         return self.sensor_data
 
-    def check_connection(self, value: int = 20) -> bool:
+    def check_connection(self, value: int = 40) -> bool:
         """Check that the drone is connected to the network."""
         if os.system(f"ping -c 1 {self.ip_address}") == 0:
             if self.sensor_data['wifi_signal'] > -value:
+                print(f"Drone signal is: {self.sensor_data['wifi_signal']}")
                 self.status_flags['connected'] = True
                 return True
             else:
+                print(f"Drone signal is: {self.sensor_data['wifi_signal']}")
                 self.status_flags['connected'] = False
                 return False
 

@@ -25,6 +25,7 @@ Missing Topics (5):
 
 import cv2
 import numpy as np
+import os
 import rospy
 from ..interfaces.RosCommunication import RosCommunication
 from bebop_msgs.msg import Ardrone3CameraStateOrientation
@@ -50,7 +51,7 @@ class DroneCamera(RosCommunication):
             cls._instance = super(DroneCamera, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, drone_type: str, frequency: int = 30):
+    def __init__(self, drone_type: str, main_dir: str, frequency: int = 30):
         """
         Initializes the DroneCamera class with publishers, subscribers,
         and image handling configurations.
@@ -62,6 +63,7 @@ class DroneCamera(RosCommunication):
             return  # Prevent reinitialization if instance already exists
 
         super().__init__(drone_type, frequency)
+        self.base_filename = os.path.join(main_dir, 'images', 'internal')
         self.last_command_time = rospy.get_time()
 
         self.image_data = {key: None for key in ['image', 'compressed',
@@ -130,23 +132,23 @@ class DroneCamera(RosCommunication):
     def _process_raw_image(self, data: Image) -> None:
         """Processes raw image data from the ROS topic."""
         if self._time_to_update():
-            self._process_image(data, "image_raw.png", 'image',
+            self._process_image(data, 'image',
                                 use_cv_bridge=True)
 
     def _process_compressed_image(self, data: CompressedImage) -> None:
         """Processes compressed image data from the ROS topic."""
         if self._time_to_update():
-            self._process_image(data, "compressed.png", 'compressed')
+            self._process_image(data, 'compressed')
 
     def _process_compressed_depth_image(self, data: CompressedImage) -> None:
         """Processes compressed depth image data from the ROS topic."""
         if self._time_to_update():
-            self._process_image(data, "depth.png", 'depth')
+            self._process_image(data, 'depth')
 
     def _process_theora_image(self, data: CompressedImage) -> None:
         """Processes Theora-encoded image data from the ROS topic."""
         if self._time_to_update():
-            self._process_image(data, "theora.png", 'theora')
+            self._process_image(data, 'theora')
 
     def _update_orientation(self, data: Ardrone3CameraStateOrientation
                             ) -> None:
@@ -160,7 +162,6 @@ class DroneCamera(RosCommunication):
         Saves image data from the ROS topic using the appropriate decoding.
 
         :param data: Image data from ROS.
-        :param filename: Filename to save the image.
         :param img_type: Type of the image (e.g., 'image', 'compressed').
         :param use_cv_bridge: Flag to indicate if CvBridge should be used.
         """
@@ -170,6 +171,10 @@ class DroneCamera(RosCommunication):
                                        cv2.IMREAD_COLOR))
             self.image_data[img_type] = image
             self.success_flags[img_type] = image is not None
+
+            # if image is not None:
+            #     cv2.imwrite(
+            #         os.path.join(self.base_filename, img_type + '.png'), image)
         except (cv2.error, ValueError) as e:
             rospy.logerr(f"Failed to process {img_type} image: {e}")
 

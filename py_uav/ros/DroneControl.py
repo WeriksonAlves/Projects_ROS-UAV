@@ -19,7 +19,7 @@ import numpy as np
 import rospy
 from ..interfaces.RosCommunication import RosCommunication
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Empty, UInt8, Bool
+from std_msgs.msg import Empty, UInt8, Bool, String
 
 
 class DroneControl(RosCommunication):
@@ -100,7 +100,7 @@ class DroneControl(RosCommunication):
             'flip': ('/bebop/flip', UInt8),
             'navigate_home': ('/bebop/autoflight/navigate_home', Bool),
             'pause': ('/bebop/autoflight/pause', Empty),
-            'start': ('/bebop/autoflight/start', Empty),
+            'start': ('/bebop/autoflight/start', String),
             'stop': ('/bebop/autoflight/stop', Empty),
         }
         return {
