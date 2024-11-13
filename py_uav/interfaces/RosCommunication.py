@@ -23,10 +23,6 @@ class RosCommunication(ABC):
         self.drone_type = drone_type
         self.command_interval = 1 / frequency
 
-        # Initialize subscribers and publishers for ROS communication
-        self._initialize_subscribers()
-        self._initialize_publishers()
-
     @abstractmethod
     def _initialize_subscribers(self) -> None:
         """

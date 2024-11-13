@@ -28,7 +28,7 @@ class Bebop2:
         :param frequency: Frequency of sensor updates.
         """
         # Initialize ROS node
-        rospy.init_node('bebop2_ros', anonymous=True)
+        rospy.init_node('BEBOP2', anonymous=True)
 
         # Initialize drone parameters
         self.drone_type = drone_type
@@ -82,7 +82,7 @@ class Bebop2:
 
     def check_connection(self) -> None:
         """Checks if the drone is connected to the network."""
-        self.sensor_manager.check_connection()
+        return self.sensor_manager.check_connection()
 
     # Drone Control Methods
     def takeoff(self) -> None:
@@ -195,9 +195,8 @@ class Bebop2:
         :param yaw_comp: Optional yaw compensation.
         """
         self._execute_command(
-            lambda: self.command_manager.adjust_camera_orientation(tilt, pan,
-                                                                   pitch_comp,
-                                                                   yaw_comp),
+            lambda: self.command_manager.adjust_camera_orientation(
+                tilt - pitch_comp, pan - yaw_comp),
             "adjusting camera orientation"
         )
 

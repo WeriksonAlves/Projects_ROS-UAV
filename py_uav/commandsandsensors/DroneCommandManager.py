@@ -214,19 +214,14 @@ class DroneCommandManager:
 
     # Camera commands
 
-    def adjust_camera_orientation(self, tilt: float, pan: float,
-                                  pitch_comp: float = 0.0,
-                                  yaw_comp: float = 0.0) -> None:
+    def adjust_camera_orientation(self, tilt: float, pan: float) -> None:
         """
         Adjusts the camera orientation by setting its tilt and pan.
 
         :param tilt: Vertical movement in degrees.
         :param pan: Horizontal movement in degrees.
-        :param pitch_comp: Optional pitch compensation for the drone.
-        :param yaw_comp: Optional yaw compensation for the drone.
         """
-        self.drone_camera.control_camera_orientation(tilt - pitch_comp,
-                                                     pan - yaw_comp)
+        self.drone_camera.control_camera_orientation(tilt, pan)
 
     def adjust_camera_exposure(self, exposure: float) -> None:
         """

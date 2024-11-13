@@ -59,12 +59,15 @@ class DroneSensors(RosCommunication):
         super().__init__(drone_type, frequency)
         self.sensor_manager = SensorDataManager(update_interval=1 / frequency)
 
-        self._setup_subscribers()
+        self._initialize_subscribers()
         rospy.loginfo(f"Sensors initialized for {drone_type}.")
 
         self._initialized = True
 
-    def _setup_subscribers(self) -> None:
+    def _initialize_publishers(self) -> None:
+        return super()._initialize_publishers()
+
+    def _initialize_subscribers(self) -> None:
         """Configures ROS subscribers for each sensor topic."""
         topic_map = {
             '/bebop/fix': (NavSatFix, self._process_gps_position),

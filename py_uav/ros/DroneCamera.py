@@ -74,8 +74,10 @@ class DroneCamera(RosCommunication):
         try:
             self.pubs = self._initialize_publishers()
             self.subs = self._initialize_subscribers()
+            self.open_camera = True
             rospy.loginfo(f"DroneCamera initialized for {self.drone_type}.")
         except rospy.ROSException as e:
+            self.open_camera = False
             rospy.logerr(f"Failed to initialize DroneCamera: {e}")
             quit()
 

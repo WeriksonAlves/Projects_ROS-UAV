@@ -1,6 +1,6 @@
 from .commandsandsensors.DroneCommandManager import DroneCommandManager
 from .commandsandsensors.DroneSensorManager import DroneSensorManager
-from .commandsandsensors.DroneSettings import DroneSettings
+from .commandsandsensors.DroneSettingManager import DroneSettingManager
 
 from .interfaces.RosCommunication import RosCommunication
 
@@ -14,3 +14,4 @@ from .ros.DroneStates import FlightStateManager
 from .utils.MyFunctions import MyFunctions
 
 from .Bebop2 import Bebop2
+from .DroneVision import DroneVision

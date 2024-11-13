@@ -43,13 +43,13 @@ class DroneSensorManager:
     def _initialize_status_flags(self) -> Dict[str, bool]:
         """Initializes the drone's status flags."""
         return {
-            'connected': False, 'battery_full': False, 'battery_low': False,
-            'battery_critical': False, 'emergency': False, 'hovering': False,
-            'landed': True, 'moving': False, 'image_on': False,
-            'recording': False, 'video_on': False, 'stabilized': False,
-            'automatic': False, 'manual': False, 'gps_fixed': False,
-            'gps_updated': False, 'temperature_updated': False,
-            'pressure_updated': False, 'state_updated': False
+            'automatic': False, 'battery_critical': False,
+            'battery_full': False, 'battery_low': False, 'camera_on': False,
+            'connected': False, 'emergency': False, 'gps_fixed': False,
+            'gps_updated': False, 'hovering': False, 'landed': True,
+            'manual': False, 'moving': False, 'pressure_updated': False,
+            'recording': False, 'stabilized': False, 'state_updated': False,
+            'temperature_updated': False, 'video_on': False
         }
 
     def update_sensor_data(self) -> None:
@@ -61,13 +61,15 @@ class DroneSensorManager:
         """Returns the most recent sensor data."""
         return self.sensor_data
 
-    def check_connection(self, value: int = 20) -> None:
+    def check_connection(self, value: int = 20) -> bool:
         """Check that the drone is connected to the network."""
         if os.system(f"ping -c 1 {self.ip_address}") == 0:
             if self.sensor_data['wifi_signal'] > -value:
                 self.status_flags['connected'] = True
+                return True
             else:
                 self.status_flags['connected'] = False
+                return False
 
     # Control methods
 
@@ -88,6 +90,10 @@ class DroneSensorManager:
         return self.sensor_data['battery']
 
     # Camera methods
+    def check_camera(self) -> bool:
+        """Opens the drone's camera."""
+        self.sensor_data['camera_on'] = self.drone_camera.open_camera
+        return self.sensor_data['camera_on']
 
     def read_image(self, subscriber: str = 'compressed') -> Tuple[bool,
                                                                   np.ndarray]:
