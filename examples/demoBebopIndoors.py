@@ -4,11 +4,11 @@ from py_uav.Bebop2 import Bebop2
 # Assuming Bebop2ROS is already defined and imported in your project
 bebop_drone = Bebop2()
 
-print(bebop_drone.sensor_manager.sensor_data['battery_level'])
-
 print("Connecting to Bebop2 drone...")
 if bebop_drone.check_connection():
     print("Successfully connected to the drone.")
+
+    print(bebop_drone.sensor_manager.sensor_data['battery_level'])
 
     # Start the video stream
     print("Starting video stream...")

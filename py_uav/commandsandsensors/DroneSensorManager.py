@@ -72,6 +72,9 @@ class DroneSensorManager:
                 print(f"Drone signal is: {self.sensor_data['wifi_signal']}")
                 self.status_flags['connected'] = False
                 return False
+        else:
+            self.status_flags['connected'] = False
+            return False
 
     # Control methods
 

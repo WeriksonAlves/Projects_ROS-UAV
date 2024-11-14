@@ -80,7 +80,7 @@ class Bebop2:
         """
         self.sensor_manager.update_sensor_data()
 
-    def check_connection(self) -> None:
+    def check_connection(self) -> bool:
         """Checks if the drone is connected to the network."""
         return self.sensor_manager.check_connection()
 
