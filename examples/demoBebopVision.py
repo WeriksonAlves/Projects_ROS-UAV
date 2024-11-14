@@ -51,13 +51,13 @@ class UserVision:
 
 
 # Initializes the Bebop2ROS object for drone control
-bebop = Bebop2()
+bebop = Bebop2(drone_type='Gazebo')
 
 # Battery level
 print(f"Battery level: {bebop.sensor_manager.sensor_data['battery_level']}%")
 
 # Connect to drone
-if bebop.check_connection():
+if True:  # bebop.check_connection():
     print("Bebop2 connected.")
 
     # Initialize vision using DroneVision

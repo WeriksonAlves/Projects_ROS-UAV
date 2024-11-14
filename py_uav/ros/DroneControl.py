@@ -15,11 +15,11 @@ ROS Topics (10):
     - /bebop/autoflight/stop
 """
 
-import numpy as np
-import rospy
 from ..interfaces.RosCommunication import RosCommunication
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Empty, UInt8, Bool, String
+import numpy as np
+import rospy
 
 
 class DroneControl(RosCommunication):
@@ -41,7 +41,8 @@ class DroneControl(RosCommunication):
         Initializes the DroneControl class with required ROS publishers
         for drone commands.
 
-        :param drone_type: Specifies the type of drone (e.g., "Bebop2").
+        :param drone_type: Specifies the type of drone (e.g., "Bebop2" or
+                           "Gazebo").
         :param frequency: Command frequency in Hz (default: 30).
         """
         if hasattr(self, '_initialized') and self._initialized:
@@ -57,27 +58,20 @@ class DroneControl(RosCommunication):
             rospy.logerr(f"DroneControl initialization failed: {e}")
             quit()
 
-        # Initialize proportional gain matrix (Kp) for position control
         self.Kp = self._initialize_kp()
-
         self._initialized = True
 
     def _initialize_kp(self) -> np.ndarray:
         """
         Sets up the proportional gain matrix (Kp) based on the drone type.
 
-        :return: Proportional gain matrix (4x4 matrix).
+        :return: Proportional gain matrix for the drone.
         """
-        # Adjust these values based on the specific drone type and tuning
-        # requirements
-        if self.drone_type == 'basic_drone':
-            # Basic tuning values
+        if self.drone_type == 'Bebop2':
             return np.diag([1.0, 1.0, 1.0, 0.5])
-        elif self.drone_type == 'advanced_drone':
-            # More aggressive tuning for advanced drones
-            return np.diag([1.5, 1.5, 1.2, 0.7])
+        elif self.drone_type == 'Gazebo':
+            return np.diag([1.0, 1.0, 1.0, 0.5])
         else:
-            # Default matrix for undefined types
             return np.diag([1.0, 1.0, 1.0, 1.0])
 
     def _initialize_subscribers(self) -> None:
@@ -89,20 +83,32 @@ class DroneControl(RosCommunication):
         Initializes and returns a dictionary of ROS publishers for drone
         commands.
 
-        :return: Dictionary mapping command names to their ROS publishers.
+        :return: Dictionary of ROS publishers for drone commands.
         """
-        topics = {
-            'takeoff': ('/bebop/takeoff', Empty),
-            'land': ('/bebop/land', Empty),
-            'reset': ('/bebop/reset', Empty),
-            'cmd_vel': ('/bebop/cmd_vel', Twist),
-            'flattrim': ('/bebop/flattrim', Empty),
-            'flip': ('/bebop/flip', UInt8),
-            'navigate_home': ('/bebop/autoflight/navigate_home', Bool),
-            'pause': ('/bebop/autoflight/pause', Empty),
-            'start': ('/bebop/autoflight/start', String),
-            'stop': ('/bebop/autoflight/stop', Empty),
-        }
+        if self.drone_type == "Bebop2":
+            topics = {
+                'takeoff': ('/bebop/takeoff', Empty),
+                'land': ('/bebop/land', Empty),
+                'reset': ('/bebop/reset', Empty),
+                'cmd_vel': ('/bebop/cmd_vel', Twist),
+                'flattrim': ('/bebop/flattrim', Empty),
+                'flip': ('/bebop/flip', UInt8),
+                'navigate_home': ('/bebop/autoflight/navigate_home', Bool),
+                'pause': ('/bebop/autoflight/pause', Empty),
+                'start': ('/bebop/autoflight/start', String),
+                'stop': ('/bebop/autoflight/stop', Empty),
+            }
+        elif self.drone_type == "Gazebo":
+            topics = {
+                'takeoff': ('/bebop/takeoff', Empty),
+                'land': ('/bebop/land', Empty),
+                'reset': ('/bebop/reset', Empty),
+                'cmd_vel': ('/bebop/cmd_vel', Twist),
+            }
+        else:
+            rospy.logwarn(f"Unknown drone type: {self.drone_type}")
+            topics = {}
+
         return {
             name: rospy.Publisher(topic, msg_type, queue_size=10)
             for name, (topic, msg_type) in topics.items()

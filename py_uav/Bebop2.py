@@ -95,8 +95,13 @@ class Bebop2:
 
         :param timeout: Maximum time to attempt takeoff.
         """
-        self._execute_command(
+        action = self._execute_command(
             lambda: self.command_manager.safe_takeoff(timeout), "taking off")
+        if action:
+            self.smart_sleep(2.0)
+        else:
+            self.emergency_land()
+            quit()
 
     def land(self) -> None:
         """Commands the drone to land."""
@@ -229,10 +234,18 @@ class Bebop2:
         return self.sensor_manager.check_camera()
 
     # Helper Methods
-    def _normalize_command(self, value: float, min: float = -1,
-                           max: float = 1, prop: float = 100) -> float:
-        """Normalizes command values to the range [-1, 1]."""
-        return max(min(value / prop, max), min)
+    def _normalize_command(self, value, prop: int = 100, max_val: float = 1.0,
+                           min_val: float = -1.0) -> float:
+        """
+        Normalizes a command value between a specified range.
+
+        :param value: The input value to normalize.
+        :param prop: Proportional scaling factor.
+        :param max_val: Maximum allowed value.
+        :param min_val: Minimum allowed value.
+        :return: Normalized value.
+        """
+        return max(min(value / prop, max_val), min_val)
 
     def _execute_command(self, command: Callable, action_description: str
                          ) -> None:
@@ -243,13 +256,20 @@ class Bebop2:
         :param action_description: Description of the action for logging.
         """
         try:
-            command()
+            return command()
         except Exception as e:
             rospy.loginfo(f"Error during {action_description}: {e}")
 
-    def _sensor_update_loop(self) -> None:
-        """Continuously updates sensor data at the specified frequency."""
-        rate = rospy.Rate(self.frequency)
-        while not rospy.is_shutdown():
-            self.update_sensors()
-            rate.sleep()
+    def _sensor_update_loop(self):
+        rate = rospy.Rate(10)  # Set your desired loop frequency
+
+        try:
+            while not rospy.is_shutdown():
+                self.update_sensors()
+                rate.sleep()
+        except rospy.ROSInterruptException:
+            rospy.loginfo(
+                "Sensor update loop interrupted due to ROS shutdown.")
+
+        # Additional cleanup if needed
+        rospy.loginfo("Exiting sensor update loop gracefully.")

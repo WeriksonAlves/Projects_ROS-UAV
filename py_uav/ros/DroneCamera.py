@@ -2,31 +2,8 @@
 DroneCamera: This class handles camera operations for the Bebop drone,
 including capturing raw images, managing camera orientation, and controlling
 exposure settings.
-
-ROS Topics (10):
-    - /bebop/image_raw
-    - /bebop/image_raw/compressed
-    - /bebop/image_raw/compressed/parameter_descriptions
-    - /bebop/image_raw/compressed/parameter_updates
-    - /bebop/image_raw/compressedDepth
-    - /bebop/image_raw/theora
-    - /bebop/camera_control
-    - /bebop/states/ardrone3/CameraState/Orientation
-    - /bebop/set_exposure
-    - /bebop/snapshot
-
-Missing Topics (5):
-    - /bebop/camera_info
-    - /bebop/image_raw/compressedDepth/parameter_descriptions
-    - /bebop/image_raw/compressedDepth/parameter_updates
-    - /bebop/image_raw/theora/parameter_descriptions
-    - /bebop/image_raw/theora/parameter_updates
 """
 
-import cv2
-import numpy as np
-import os
-import rospy
 from ..interfaces.RosCommunication import RosCommunication
 from bebop_msgs.msg import Ardrone3CameraStateOrientation
 from cv_bridge import CvBridge
@@ -35,6 +12,10 @@ from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Image, CompressedImage
 from std_msgs.msg import Empty, Float32
 from typing import List, Dict
+import cv2
+import numpy as np
+import os
+import rospy
 
 
 class DroneCamera(RosCommunication):
@@ -241,8 +222,8 @@ class ParameterListener:
                     "/bebop2/camera_base/image_raw/compressed/parameter_descriptions",
                     ConfigDescription, self._param_desc_callback),
                 'compressed_update': rospy.Subscriber(
-                    "/bebop2/camera_base/image_raw/compressed/parameter_updates"
-                    , Config, self._param_update_callback)
+                    "/bebop2/camera_base/image_raw/compressed/parameter_updates",
+                    Config, self._param_update_callback)
             }
         elif self.drone_type == "Bebop2":
             return {
@@ -254,7 +235,8 @@ class ParameterListener:
                     self._param_update_callback)
             }
         else:
-            raise ValueError("Invalid drone type for parameter initialization.")
+            raise ValueError(
+                "Invalid drone type for parameter initialization.")
 
     def _param_desc_callback(self, data: ConfigDescription) -> None:
         """Logs parameter descriptions."""

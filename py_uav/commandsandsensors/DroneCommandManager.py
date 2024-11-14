@@ -35,7 +35,9 @@ class DroneCommandManager:
             rospy.loginfo("Takeoff command ignored. Drone not landed.")
             return
         rospy.loginfo("Initiating takeoff...")
+        self.sensor_manager.change_status_flags('landed', False)
         self.drone_control.takeoff()
+        self.sensor_manager.change_status_flags('hovering', True)
         rospy.loginfo("Drone taking off.")
 
     def land(self) -> None:
@@ -47,10 +49,12 @@ class DroneCommandManager:
             rospy.loginfo("Land command ignored. Drone not hovering.")
             return
         rospy.loginfo("Initiating landing...")
+        self.sensor_manager.change_status_flags('hovering', False)
         self.drone_control.land()
+        self.sensor_manager.change_status_flags('landed', True)
         rospy.loginfo("Drone landing.")
 
-    def safe_takeoff(self, timeout: float = 3.0) -> None:
+    def safe_takeoff(self, timeout: float = 3.0) -> bool:
         """
         Safely takes off the drone, with a timeout.
 
@@ -70,9 +74,12 @@ class DroneCommandManager:
             self.drone_control.takeoff()
             rospy.sleep(0.1)
             if self.sensor_manager.get_sensor_data()['altitude'] > 0.5:
+                self.sensor_manager.change_status_flags('landed', False)
                 rospy.loginfo("Drone safely took off.")
-                return
+                self.sensor_manager.change_status_flags('hovering', True)
+                return True
         rospy.loginfo("Drone failed to take off.")
+        return False
 
     def safe_land(self, timeout: float = 3.0) -> None:
         """
@@ -94,7 +101,9 @@ class DroneCommandManager:
             self.drone_control.land()
             rospy.sleep(0.1)
             if self.sensor_manager.get_sensor_data()['altitude'] < 0.15:
+                self.sensor_manager.change_status_flags('hovering', False)
                 rospy.loginfo("Drone safely landed.")
+                self.sensor_manager.change_status_flags('landed', True)
                 return
         rospy.loginfo("Drone failed to land.")
 
@@ -108,7 +117,7 @@ class DroneCommandManager:
         while self.sensor_manager.get_sensor_data()['altitude'] > 0.15:
             self.drone_control.land()
             rospy.sleep(0.1)
-        self.drone_control.stop()
+        self.drone_control.land()
         rospy.loginfo("Drone emergency stopped.")
 
     def flip(self, direction: str) -> None:

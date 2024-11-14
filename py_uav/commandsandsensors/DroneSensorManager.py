@@ -77,6 +77,9 @@ class DroneSensorManager:
             return False
 
     # Control methods
+    def change_status_flags(self, name: str, value: bool) -> None:
+        """Changes the status flags of the drone."""
+        self.status_flags[name] = value
 
     def is_emergency(self) -> bool:
         """Check if the drone is in emergency status."""
