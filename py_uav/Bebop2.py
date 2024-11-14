@@ -16,7 +16,7 @@ class Bebop2:
     sensor access.
     """
 
-    def __init__(self, drone_type: str = 'bebop2',
+    def __init__(self, drone_type: str = 'Bebop2',
                  ip_address: str = "192.168.0.202", frequency: float = 30.0
                  ) -> None:
         """

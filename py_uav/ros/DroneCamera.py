@@ -71,9 +71,9 @@ class DroneCamera(RosCommunication):
         self.success_flags = {key: False for key in self.image_data.keys()}
         self.bridge = CvBridge()
         self.orientation = {'tilt': 0.0, 'pan': 0.0}
-        self.param_listener = ParameterListener(self)
 
         try:
+            self.param_listener = ParameterListener(self.drone_type, self)
             self.pubs = self._initialize_publishers()
             self.subs = self._initialize_subscribers()
             self.open_camera = True
@@ -98,24 +98,39 @@ class DroneCamera(RosCommunication):
 
     def _initialize_subscribers(self) -> Dict[str, rospy.Subscriber]:
         """Initialize ROS subscribers for camera data and orientation."""
-        self.param_listener.init_subscribers(['compressed_description',
-                                              'compressed_update'])
-        return {
-            'image': rospy.Subscriber("/bebop/image_raw", Image,
-                                      self._process_raw_image),
-            'compressed': rospy.Subscriber("/bebop/image_raw/compressed",
+        if self.drone_type == "Gazebo":
+            return {
+                'image': rospy.Subscriber("/bebop2/camera_base/image_raw",
+                                          Image, self._process_raw_image),
+                'compressed': rospy.Subscriber(
+                    "/bebop2/camera_base/image_raw/compressed",
+                    CompressedImage, self._process_compressed_image),
+                'depth': rospy.Subscriber(
+                    "/bebop2/camera_base/image_raw/compressedDepth",
+                    CompressedImage, self._process_compressed_depth_image),
+                'theora': rospy.Subscriber(
+                    "/bebop2/camera_base/image_raw/theora", CompressedImage,
+                    self._process_theora_image)
+            }
+        elif self.drone_type == "Bebop2":
+            return {
+                'image': rospy.Subscriber("/bebop/image_raw", Image,
+                                          self._process_raw_image),
+                'compressed': rospy.Subscriber("/bebop/image_raw/compressed",
+                                               CompressedImage,
+                                               self._process_compressed_image),
+                'depth': rospy.Subscriber(
+                    "/bebop/image_raw/compressedDepth", CompressedImage,
+                    self._process_compressed_depth_image),
+                'theora': rospy.Subscriber("/bebop/image_raw/theora",
                                            CompressedImage,
-                                           self._process_compressed_image),
-            'depth': rospy.Subscriber("/bebop/image_raw/compressedDepth",
-                                      CompressedImage,
-                                      self._process_compressed_depth_image),
-            'theora': rospy.Subscriber("/bebop/image_raw/theora",
-                                       CompressedImage,
-                                       self._process_theora_image),
-            'camera_orientation': rospy.Subscriber(
-                "/bebop/states/ardrone3/CameraState/Orientation",
-                Ardrone3CameraStateOrientation, self._update_orientation)
-        }
+                                           self._process_theora_image),
+                'camera_orientation': rospy.Subscriber(
+                    "/bebop/states/ardrone3/CameraState/Orientation",
+                    Ardrone3CameraStateOrientation, self._update_orientation)
+            }
+        else:
+            raise ValueError("Invalid drone type for camera initialization.")
 
     def _time_to_update(self) -> bool:
         """
@@ -208,30 +223,38 @@ class DroneCamera(RosCommunication):
 class ParameterListener:
     """Listens to dynamic parameter updates for the Bebop camera."""
 
-    def __init__(self, camera: DroneCamera) -> None:
+    def __init__(self, drone_type: str, camera: DroneCamera) -> None:
         """
         Initializes the ParameterListener with references to the DroneCamera.
         """
+        self.drone_type = drone_type
         self.camera = camera
-        self.subscribers = {}
+        self.subscribers = self._initialize_subscribers()
 
-    def init_subscribers(self, topics: List[str]) -> None:
+    def _initialize_subscribers(self) -> None:
         """
         Initialize dynamic reconfiguration subscribers for parameter updates.
         """
-        param_topics = {
-            'compressed_description': (
-                "/bebop/image_raw/compressed/parameter_descriptions",
-                ConfigDescription, self._param_desc_callback),
-            'compressed_update': (
-                "/bebop/image_raw/compressed/parameter_updates", Config,
-                self._param_update_callback)
-        }
-        for topic in topics:
-            if topic in param_topics:
-                topic_name, msg_type, callback = param_topics[topic]
-                self.subscribers[topic] = rospy.Subscriber(topic_name,
-                                                           msg_type, callback)
+        if self.drone_type == "Gazebo":
+            return {
+                'compressed_description': rospy.Subscriber(
+                    "/bebop2/camera_base/image_raw/compressed/parameter_descriptions",
+                    ConfigDescription, self._param_desc_callback),
+                'compressed_update': rospy.Subscriber(
+                    "/bebop2/camera_base/image_raw/compressed/parameter_updates"
+                    , Config, self._param_update_callback)
+            }
+        elif self.drone_type == "Bebop2":
+            return {
+                'compressed_description': rospy.Subscriber(
+                    "/bebop/image_raw/compressed/parameter_descriptions",
+                    ConfigDescription, self._param_desc_callback),
+                'compressed_update': rospy.Subscriber(
+                    "/bebop/image_raw/compressed/parameter_updates", Config,
+                    self._param_update_callback)
+            }
+        else:
+            raise ValueError("Invalid drone type for parameter initialization.")
 
     def _param_desc_callback(self, data: ConfigDescription) -> None:
         """Logs parameter descriptions."""
