@@ -118,6 +118,9 @@ class DroneCommandManager:
             self.drone_control.land()
             rospy.sleep(0.1)
         self.drone_control.land()
+        self.sensor_manager.change_status_flags('hovering', False)
+        self.sensor_manager.change_status_flags('landed', True)
+        self.sensor_manager.change_status_flags('emergency', True)
         rospy.loginfo("Drone emergency stopped.")
 
     def flip(self, direction: str) -> None:
