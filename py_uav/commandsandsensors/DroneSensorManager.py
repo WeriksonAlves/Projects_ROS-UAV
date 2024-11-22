@@ -34,10 +34,10 @@ class DroneSensorManager:
         """Initializes the sensor data dictionary with default values."""
         return {
             'altitude': 0.0, 'attitude': [0.0] * 3, 'battery_level': 100,
-            'camera': None, 'gps': [0.0] * 3, 'image': None,
-            'orientation': [0.0] * 3, 'position': [0.0] * 3,
-            'speed_angular': [0.0] * 3, 'speed_linear': [0.0] * 3,
-            'state': "unknown", 'wifi_signal': 0.0
+            'camera': None, 'flying_state': None, 'gps_position': [0.0] * 3,
+            'ground_truth': None, 'image': None, 'odometry': None,
+            'position': [0.0] * 3, 'spped': [0.0] * 6, 'state': "unknown",
+            'wifi_signal': 0.0
         }
 
     def _initialize_status_flags(self) -> Dict[str, bool]:

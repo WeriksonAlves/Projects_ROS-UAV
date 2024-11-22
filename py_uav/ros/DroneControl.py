@@ -1,18 +1,6 @@
 """
 DroneControl: Manages the Bebop drone's basic control operations, including
 takeoff, landing, movement, flips, and autopilot commands through ROS topics.
-
-ROS Topics (10):
-    - /bebop/takeoff
-    - /bebop/land
-    - /bebop/cmd_vel
-    - /bebop/reset
-    - /bebop/flattrim
-    - /bebop/flip
-    - /bebop/autoflight/navigate_home
-    - /bebop/autoflight/pause
-    - /bebop/autoflight/start
-    - /bebop/autoflight/stop
 """
 
 from ..interfaces.RosCommunication import RosCommunication

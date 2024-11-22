@@ -27,8 +27,9 @@ from bebop_msgs.msg import (
     CommonCommonStateBatteryStateChanged,
     CommonCommonStateWifiSignalChanged,
 )
+from geometry_msgs.msg import Pose
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import JointState, NavSatFix
+from sensor_msgs.msg import NavSatFix
 from typing import Any, Dict, List, Callable
 
 
@@ -50,7 +51,7 @@ class DroneSensors(RosCommunication):
         Initializes the DroneSensors class with ROS subscribers for each drone
         sensor.
 
-        :param drone_type: Type of the drone.
+        :param drone_type: Type of the drone ('bebop2' or 'gazebo').
         :param frequency: Sensor update frequency in Hz (default: 30 Hz).
         """
         if hasattr(self, '_initialized') and self._initialized:
@@ -58,6 +59,8 @@ class DroneSensors(RosCommunication):
 
         super().__init__(drone_type, frequency)
         self.sensor_manager = SensorDataManager(update_interval=1 / frequency)
+        self.last_position = None
+        self.last_time = None
 
         self._initialize_subscribers()
         rospy.loginfo(f"Sensors initialized for {drone_type}.")
@@ -69,59 +72,55 @@ class DroneSensors(RosCommunication):
 
     def _initialize_subscribers(self) -> None:
         """Configures ROS subscribers for each sensor topic."""
-        topic_map = {
-            '/bebop/fix': (NavSatFix, self._process_gps_position),
-            '/bebop/joint_states': (JointState, self._process_joint_state),
-            '/bebop/odom': (Odometry, self._process_odometry),
-            '/bebop/states/ardrone3/PilotingState/AltitudeChanged':
-                (Ardrone3PilotingStateAltitudeChanged, self._process_altitude),
-            '/bebop/states/ardrone3/PilotingState/AttitudeChanged':
-                (Ardrone3PilotingStateAttitudeChanged, self._process_attitude),
-            '/bebop/states/ardrone3/PilotingState/PositionChanged':
-                (Ardrone3PilotingStatePositionChanged, self._process_position),
-            '/bebop/states/ardrone3/PilotingState/SpeedChanged':
-                (Ardrone3PilotingStateSpeedChanged, self._process_speed),
-            '/bebop/states/ardrone3/PilotingState/FlyingStateChanged':
-                (Ardrone3PilotingStateFlyingStateChanged,
-                 self._process_flying_state),
-            '/bebop/states/common/CommonState/BatteryStateChanged':
-                (CommonCommonStateBatteryStateChanged,
-                 self._process_battery_level),
-            '/bebop/states/common/CommonState/WifiSignalChanged':
-                (CommonCommonStateWifiSignalChanged,
-                 self._process_wifi_signal),
-        }
+        if self.drone_type == "bebop2":
+            topic_map = {
+                '/bebop/states/ardrone3/PilotingState/AltitudeChanged':
+                    (Ardrone3PilotingStateAltitudeChanged,
+                        self._process_altitude),
+                '/bebop/states/ardrone3/PilotingState/AttitudeChanged':
+                    (Ardrone3PilotingStateAttitudeChanged,
+                        self._process_attitude),
+                '/bebop/states/common/CommonState/BatteryStateChanged':
+                    (CommonCommonStateBatteryStateChanged,
+                        self._process_battery_level),
+                '/bebop/states/ardrone3/PilotingState/FlyingStateChanged':
+                    (Ardrone3PilotingStateFlyingStateChanged,
+                        self._process_flying_state),
+                '/bebop/fix': (NavSatFix, self._process_gps_position),
+                '/bebop/odom': (Odometry, self._process_odometry),
+                '/bebop/states/ardrone3/PilotingState/PositionChanged':
+                    (Ardrone3PilotingStatePositionChanged,
+                     self._process_position),
+                '/bebop/states/ardrone3/PilotingState/SpeedChanged':
+                    (Ardrone3PilotingStateSpeedChanged, self._process_speed),
+                '/bebop/states/common/CommonState/WifiSignalChanged':
+                    (CommonCommonStateWifiSignalChanged,
+                        self._process_wifi_signal),
+            }
+        elif self.drone_type == "gazebo":
+            topic_map = {
+                '/bebop2/odometry_sensor1/pose':
+                    (Pose, self._process_general_info),
+                '/bebop2/odometry_sensor1/odometry':
+                    (Odometry, self._process_odometry_gz),
+                '/bebop2/ground_truth/odometry':
+                    (Odometry, self._process_ground_truth),
+            }
+        else:
+            rospy.logerr(f"Unknown drone type: {self.drone_type}")
+            return
+
+        # Set up subscribers based on the chosen topic map
         for topic, (msg_type, callback) in topic_map.items():
             rospy.Subscriber(topic, msg_type, callback)
 
-    # Sensor data processing methods
-    def _process_odometry(self, odom: Odometry) -> None:
-        """Processes odometry-based sensor data."""
-        self.sensor_manager.update_sensor("position", odom,
-                                          self._extract_position)
-        self.sensor_manager.update_sensor("orientation", odom,
-                                          self._extract_orientation)
-        self.sensor_manager.update_sensor("speed_linear", odom,
-                                          self._extract_linear_speed)
-        self.sensor_manager.update_sensor("speed_angular", odom,
-                                          self._extract_angular_speed)
-
-    def _process_gps_position(self, gps_data: NavSatFix) -> None:
-        """Processes GPS position data."""
-        self.sensor_manager.update_sensor("gps_position", gps_data,
-                                          self._extract_gps_position)
-
-    def _process_joint_state(self, joint_state: JointState) -> None:
-        """Processes joint state data."""
-        self.sensor_manager.update_sensor("joint_state", joint_state,
-                                          self._extract_joint_state)
-
+    # Bebop2-specific sensor data processing methods
     def _process_altitude(self,
                           altitude_data: Ardrone3PilotingStateAltitudeChanged
                           ) -> None:
         """Processes altitude data."""
         self.sensor_manager.update_sensor("altitude", altitude_data,
-                                          lambda x: x.altitude)
+                                          self._extract_altitude)
 
     def _process_attitude(self,
                           attitude_data: Ardrone3PilotingStateAttitudeChanged
@@ -130,12 +129,35 @@ class DroneSensors(RosCommunication):
         self.sensor_manager.update_sensor("attitude", attitude_data,
                                           self._extract_attitude)
 
+    def _process_battery_level(
+            self, battery_data: CommonCommonStateBatteryStateChanged) -> None:
+        """Processes battery level data."""
+        self.sensor_manager.update_sensor("battery_level", battery_data,
+                                          self._extract_battery_level)
+
+    def _process_flying_state(
+            self, flying_state: Ardrone3PilotingStateFlyingStateChanged
+            ) -> None:
+        """Processes flying state data."""
+        self.sensor_manager.update_sensor("flying_state", flying_state,
+                                          self._extract_flying_state)
+
+    def _process_gps_position(self, gps_data: NavSatFix) -> None:
+        """Processes GPS position data."""
+        self.sensor_manager.update_sensor("gps_position", gps_data,
+                                          self._extract_gps_position)
+
+    def _process_odometry(self, odom: Odometry) -> None:
+        """Processes odometry-based sensor data."""
+        self.sensor_manager.update_sensor("odometry", odom,
+                                          self._extract_odometry)
+
     def _process_position(self,
                           position_data: Ardrone3PilotingStatePositionChanged
                           ) -> None:
-        """Processes GPS-based position data."""
-        self.sensor_manager.update_sensor("gps_position", position_data,
-                                          self._extract_gps_position)
+        """Processes position data."""
+        self.sensor_manager.update_sensor("position", position_data,
+                                          self._extract_position)
 
     def _process_speed(self, speed_data: Ardrone3PilotingStateSpeedChanged
                        ) -> None:
@@ -143,71 +165,145 @@ class DroneSensors(RosCommunication):
         self.sensor_manager.update_sensor("speed", speed_data,
                                           self._extract_speed)
 
-    def _process_flying_state(
-            self, flying_state: Ardrone3PilotingStateFlyingStateChanged
-            ) -> None:
-        """Processes flying state data."""
-        self.sensor_manager.update_sensor("flying_state", flying_state,
-                                          lambda x: x.state)
-
-    def _process_battery_level(
-            self, battery_data: CommonCommonStateBatteryStateChanged) -> None:
-        """Processes battery level data."""
-        self.sensor_manager.update_sensor("battery_level", battery_data,
-                                          lambda x: x.percent)
-
     def _process_wifi_signal(self,
                              wifi_data: CommonCommonStateWifiSignalChanged
                              ) -> None:
         """Processes WiFi signal strength data."""
         self.sensor_manager.update_sensor("wifi_signal", wifi_data,
-                                          lambda x: x.rssi)
+                                          self._extract_wifi_signal)
 
-    # Data extraction methods
-    def _extract_position(self, odom: Odometry) -> List[float]:
-        return [odom.pose.pose.position.x, odom.pose.pose.position.y,
-                odom.pose.pose.position.z]
-
-    def _extract_orientation(self, odom: Odometry) -> List[float]:
-        x, y = odom.pose.pose.orientation.x, odom.pose.pose.orientation.y
-        z, w = odom.pose.pose.orientation.z, odom.pose.pose.orientation.w
-        return [
-            math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y)),
-            math.asin(2 * (w * y - z * x)),
-            math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z)),
-        ]
-
-    def _extract_linear_speed(self, odom: Odometry) -> List[float]:
-        return [odom.twist.twist.linear.x, odom.twist.twist.linear.y,
-                odom.twist.twist.linear.z]
-
-    def _extract_angular_speed(self, odom: Odometry) -> List[float]:
-        return [odom.twist.twist.angular.x, odom.twist.twist.angular.y,
-                odom.twist.twist.angular.z]
-
-    def _extract_gps_position(self, gps_data: NavSatFix) -> List[float]:
-        return [gps_data.latitude, gps_data.longitude, gps_data.altitude]
-
-    def _extract_joint_state(self, joint_state: JointState) -> List[float]:
-        return joint_state.position
+    # Helper methods for extracting sensor data
+    def _extract_altitude(self,
+                          altitude_data: Ardrone3PilotingStateAltitudeChanged
+                          ) -> float:
+        """Extracts altitude data from altitude message."""
+        return altitude_data.altitude
 
     def _extract_attitude(self,
                           attitude_data: Ardrone3PilotingStateAttitudeChanged
                           ) -> List[float]:
         return [attitude_data.roll, attitude_data.pitch, attitude_data.yaw]
 
-    def _extract_speed(self, speed_data: Ardrone3PilotingStateSpeedChanged
-                       ) -> List[float]:
+    def _extract_battery_level(
+            self, battery_data: CommonCommonStateBatteryStateChanged) -> int:
+        """Extracts battery level data from battery message."""
+        return battery_data.percent
+
+    def _extract_flying_state(
+            self, flying_state: Ardrone3PilotingStateFlyingStateChanged
+            ) -> str:
+        """Extracts flying state data from flying state message."""
+        return flying_state.state
+
+    def _extract_gps_position(self, gps_data: NavSatFix) -> List[float]:
+        return [gps_data.latitude, gps_data.longitude, gps_data.altitude]
+
+    def _extract_odometry(self, odom: Odometry) -> Dict[str, Any]:
+        """Extracts pose data from odometry."""
+        position = [odom.pose.pose.position.x, odom.pose.pose.position.y,
+                    odom.pose.pose.position.z]
+
+        x, y = odom.pose.pose.orientation.x, odom.pose.pose.orientation.y
+        z, w = odom.pose.pose.orientation.z, odom.pose.pose.orientation.w
+        orientation = self._quartenion_to_euler(x, y, z, w)
+
+        angular_speed = [odom.twist.twist.angular.x,
+                         odom.twist.twist.angular.y,
+                         odom.twist.twist.angular.z]
+
+        linear_speed = [odom.twist.twist.linear.x,
+                        odom.twist.twist.linear.y,
+                        odom.twist.twist.linear.z]
+        return {
+            "position": position,
+            "orientation": orientation,
+            "angular_speed": angular_speed,
+            "linear_speed": linear_speed,
+        }
+
+    def _quartenion_to_euler(self, x: float, y: float, z: float,
+                             w: float) -> List[float]:
+        roll = math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y))
+        pitch = math.asin(2 * (w * y - z * x))
+        yaw = math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
+        return [roll, pitch, yaw]
+
+    def _extract_position(self,
+                          position_data: Ardrone3PilotingStatePositionChanged
+                          ) -> List[float]:
+        return [position_data.latitude, position_data.longitude,
+                position_data.altitude]
+
+    def _extract_speed(self,
+                       speed_data: Ardrone3PilotingStateSpeedChanged) -> List[
+                           float]:
         return [speed_data.speedX, speed_data.speedY, speed_data.speedZ]
 
+    def _extract_wifi_signal(
+            self, wifi_data: CommonCommonStateWifiSignalChanged) -> float:
+        """Extracts WiFi signal strength data from WiFi message."""
+        return wifi_data.rssi
+
+    # Gazebo-specific sensor data processing methods
+    def _process_general_info(self, pose: Pose) -> None:
+        """Processes pose data from Gazebo."""
+        self.sensor_manager.update_sensor("altitude", pose,
+                                          self._extract_altitude_gz)
+        self.sensor_manager.update_sensor("attitude", pose,
+                                          self._extract_attitude_gz)
+        self.sensor_manager.update_sensor("position", pose,
+                                          self._extract_position_gz)
+        self.sensor_manager.update_sensor("speed", pose,
+                                          self._extract_speed_gz)
+
+    def _process_odometry_gz(self, odom: Odometry) -> None:
+        """Processes odometry-based sensor data."""
+        self.sensor_manager.update_sensor("odometry", odom,
+                                          self._extract_odometry)
+
+    def _process_ground_truth(self, odom: Odometry) -> None:
+        """Processes ground truth odometry data."""
+        self.sensor_manager.update_sensor("ground_truth", odom,
+                                          self._extract_odometry)
+
+    # Helper methods for extracting Gazebo sensor data
+    def _extract_altitude_gz(self, pose: Pose) -> float:
+        return pose.position.z
+
+    def _extract_attitude_gz(self, pose: Pose) -> List[float]:
+        x, y = pose.orientation.x, pose.orientation.y
+        z, w = pose.orientation.z, pose.orientation.w
+        return self._quartenion_to_euler(x, y, z, w)
+
+    def _extract_position_gz(self, pose: Pose) -> List[float]:
+        return [pose.position.x, pose.position.y, pose.position.z]
+
+    def _extract_speed_gz(self, pose: Pose) -> List[float]:
+        """Extracts speed data from Gazebo pose."""
+        current_position = [pose.position.x, pose.position.y, pose.position.z]
+        current_time = rospy.get_time()
+        if self.last_position is None or self.last_time is None:
+            self.last_position = current_position
+            self.last_time = current_time
+            return [0.0, 0.0, 0.0]
+        else:
+            delta_position = [
+                current_position[i] - self.last_position[i]
+                for i in range(len(current_position))
+            ]
+            delta_time = current_time - self.last_time
+            self.last_position = current_position
+            self.last_time = current_time
+            return [delta_position[i] / delta_time for i in range(3)]
+
+    # Public methods
     def get_processed_sensor_data(self) -> Dict[str, Any]:
         """
         Retrieves processed sensor data as a dictionary.
 
-        :return: Dictionary of sensor data [position, orientation,
-                 speed_linear, speed_angular, gps_position, joint_state,
-                 altitude, attitude, speed, flying_state, battery_level,
-                 wifi_signal].
+        :return: Dictionary of sensor data [altitude, attitude, battery_level,
+                    flying_state, gps_position, ground_truth, image, odometry,
+                    position, speed, state, wifi_signal].
         """
         return self.sensor_manager.get_data()
 
