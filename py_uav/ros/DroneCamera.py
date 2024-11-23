@@ -79,7 +79,7 @@ class DroneCamera(RosCommunication):
 
     def _initialize_subscribers(self) -> Dict[str, rospy.Subscriber]:
         """Initialize ROS subscribers for camera data and orientation."""
-        if self.drone_type == "Gazebo":
+        if self.drone_type.upper() == "gazebo":
             return {
                 'image': rospy.Subscriber("/bebop2/camera_base/image_raw",
                                           Image, self._process_raw_image),
@@ -93,7 +93,7 @@ class DroneCamera(RosCommunication):
                     "/bebop2/camera_base/image_raw/theora", CompressedImage,
                     self._process_theora_image)
             }
-        elif self.drone_type == "Bebop2":
+        elif self.drone_type.upper() == "bebop2":
             return {
                 'image': rospy.Subscriber("/bebop/image_raw", Image,
                                           self._process_raw_image),
