@@ -34,9 +34,7 @@ class DroneSensorManager:
         self.drone_control = DroneControl(drone_type, frequency)
         self.drone_sensors = DroneSensors(drone_type, frequency)
         self.ip_address = ip_address
-        self.main_dir = main_dir
 
-        self.snapshot_counter = 0
         self.sensor_data = self._initialize_sensor_data()
         self.status_flags = self._initialize_status_flags()
 
