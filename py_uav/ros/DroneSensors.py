@@ -62,7 +62,7 @@ class DroneSensors(RosCommunication):
         topic_map = self._get_topic_map()
 
         if not topic_map:
-            rospy.logerr(f"Unknown drone type: {self.drone_type}")
+            rospy.logwarn(f"Unknown drone type: {self.drone_type}")
             return
 
         for topic, (msg_type, callback) in topic_map.items():
@@ -70,8 +70,8 @@ class DroneSensors(RosCommunication):
 
     def _get_topic_map(self) -> Dict[str, Callable]:
         """Returns the topic map for the given drone type."""
-        if self.drone_type.upper() == "bebop2":
-            return {
+        topics = {
+            'bebop2': {
                 '/bebop/states/ardrone3/PilotingState/AltitudeChanged':
                     (Ardrone3PilotingStateAltitudeChanged,
                      self._process_altitude),
@@ -95,17 +95,18 @@ class DroneSensors(RosCommunication):
                 '/bebop/states/common/CommonState/WifiSignalChanged':
                     (CommonCommonStateWifiSignalChanged,
                      self._process_wifi_signal),
-            }
-        elif self.drone_type.upper() == "gazebo":
-            return {
-                '/bebop2/odometry_sensor1/pose': (Pose,
-                                                  self._process_general_info),
-                '/bebop2/odometry_sensor1/odometry': (Odometry,
-                                                      self._process_odometry),
-                '/bebop2/ground_truth/odometry': (Odometry,
-                                                  self._process_ground_truth),
-            }
-        return {}
+            },
+            'gazebo': {
+                '/bebop2/odometry_sensor1/pose':
+                    (Pose, self._process_general_info),
+                '/bebop2/odometry_sensor1/odometry':
+                    (Odometry, self._process_odometry),
+                '/bebop2/ground_truth/odometry':
+                    (Odometry, self._process_ground_truth),
+            },
+        }.get(self.drone_type.upper(), {})
+
+        return topics
 
     # Sensor-specific data processing methods
     def _process_altitude(self, data: Ardrone3PilotingStateAltitudeChanged

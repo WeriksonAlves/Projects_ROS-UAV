@@ -35,7 +35,7 @@ class DroneSensorManager:
         """
         self.drone_camera = DroneCamera(drone_type, main_dir, frequency)
         self.drone_control = DroneControl(drone_type, frequency)
-        self.sensors = DroneSensors(drone_type, frequency)
+        self.drone_sensors = DroneSensors(drone_type, frequency)
         self.ip_address = ip_address
         self.main_dir = main_dir
 
@@ -104,7 +104,7 @@ class DroneSensorManager:
         """
         Updates the internal sensor data from the DroneSensors module.
         """
-        new_data = self.sensors.get_processed_sensor_data()
+        new_data = self.drone_sensors.get_processed_sensor_data()
         self.sensor_data.update(new_data)
 
     def get_sensor_data(self) -> Dict[str, object]:
