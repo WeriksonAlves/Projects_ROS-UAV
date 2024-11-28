@@ -206,25 +206,3 @@ class DroneSensorManager:
         flag = self.drone_camera.success_flags.get(subscriber, False)
         data = self.drone_camera.image_data.get(subscriber, None)
         return flag, data if data is not None else None
-
-    def save_snapshot(self, frame: np.ndarray) -> None:
-        """
-        Save a snapshot from the drone's camera to the specified directory.
-
-        :param frame: The image frame to save.
-        """
-        filename = self._generate_unique_snapshot_filename()
-        self.drone_camera.capture_snapshot(frame, filename)
-
-    def _generate_unique_snapshot_filename(self) -> str:
-        """
-        Generate a unique filename for saving snapshots.
-
-        :return: A unique filename.
-        """
-        snapshot_dir = os.path.join(self.main_dir, 'images', 'snapshot')
-        os.makedirs(snapshot_dir, exist_ok=True)
-
-        filename = f"img_{self.snapshot_counter:04d}.png"
-        self.snapshot_counter += 1
-        return os.path.join(snapshot_dir, filename)
