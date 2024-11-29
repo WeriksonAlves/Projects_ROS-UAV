@@ -1,5 +1,8 @@
 """
-
+This module provides a DroneCommandManager class that acts as a facade for
+managing the drone's commands, including takeoff, landing, flips, and camera
+controls. It simplifies interaction with DroneCamera, DroneControl, and
+DroneSensorManager, providing unified access for handling drone operations.
 """
 
 from .DroneSensorManager import DroneSensorManager
@@ -16,20 +19,19 @@ class DroneCommandManager:
     management, and camera controls.
     """
 
-    def __init__(self, drone_type: str, frequency: int,
-                 sensor_manager: DroneSensorManager, main_dir: str) -> None:
+    def __init__(self, drone_camera: DroneCamera, drone_control: DroneControl,
+                 sensor_manager: DroneSensorManager) -> None:
         """
         Initializes the DroneCommandManager.
 
-        :param drone_type: Type of the drone.
-        :param frequency: Frequency of the drone's control loop.
-        :param sensor_manager: Sensor manager for the drone.
+        :param drone_camera: DroneCamera object for handling camera operations.
+        :param drone_control: DroneControl object for handling drone commands.
+        :param sensor_manager: DroneSensorManager object for handling sensor
+                                data.
         """
-        self.drone_camera = DroneCamera(drone_type, main_dir, frequency)
-        self.drone_control = DroneControl(drone_type, frequency)
+        self.drone_camera = drone_camera
+        self.drone_control = drone_control
         self.sensor_manager = sensor_manager
-        self.frequency = frequency
-        self.main_dir = main_dir
         self.snapshot_counter = 0
 
     # Drone Command Methods
@@ -189,7 +191,8 @@ class DroneCommandManager:
 
     def move_relative(self, delta_x: float = 0.0, delta_y: float = 0.0,
                       delta_z: float = 0.0, delta_yaw: float = 0.0,
-                      power: int = 0.25, theshold: float = 0.1) -> None:
+                      power: int = 0.25, theshold: float = 0.1,
+                      rate: float = 1 / 30) -> None:
         """
         Moves the drone in the specified relative direction.
 
@@ -237,7 +240,7 @@ class DroneCommandManager:
                                     -error_vector['y'],
                                     -error_vector['z'],
                                     error_vector['yaw'])
-            rospy.sleep(1 / self.frequency)
+            rospy.sleep(rate)
 
         self.drone_control.move(0.0, 0.0, 0.0, 0.0)
         rospy.loginfo("The drone has stopped moving!")
@@ -268,22 +271,24 @@ class DroneCommandManager:
         rospy.loginfo("Releasing camera resources.")
         self.drone_camera.release()
 
-    def save_snapshot(self, frame: np.ndarray) -> None:
+    def save_snapshot(self, frame: np.ndarray, main_dir: str) -> None:
         """
         Save a snapshot from the drone's camera to the specified directory.
 
         :param frame: The image frame to save.
+        :param main_dir: The main directory for the project.
         """
-        filename = self._generate_unique_snapshot_filename()
+        filename = self._generate_unique_snapshot_filename(main_dir)
         self.drone_camera.capture_snapshot(frame, filename)
 
-    def _generate_unique_snapshot_filename(self) -> str:
+    def _generate_unique_snapshot_filename(self, main_dir: str) -> str:
         """
         Generate a unique filename for saving snapshots.
 
+        :param main_dir: The main directory for the project.
         :return: A unique filename.
         """
-        snapshot_dir = os.path.join(self.main_dir, 'images', 'snapshot')
+        snapshot_dir = os.path.join(main_dir, 'images', 'snapshot')
         os.makedirs(snapshot_dir, exist_ok=True)
 
         filename = f"img_{self.snapshot_counter:04d}.png"

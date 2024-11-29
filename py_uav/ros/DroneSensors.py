@@ -39,7 +39,7 @@ class DroneSensors(RosCommunication):
         """
         Initializes DroneSensors with ROS topic subscriptions.
 
-        :param drone_type: Drone type ('bebop2' or 'gazebo').
+        :param drone_type: Drone type.
         :param frequency: Frequency for sensor data updates (default: 30 Hz).
         """
         if getattr(self, "_initialized", False):
@@ -104,7 +104,7 @@ class DroneSensors(RosCommunication):
                 '/bebop2/ground_truth/odometry':
                     (Odometry, self._process_ground_truth),
             },
-        }.get(self.drone_type.upper(), {})
+        }.get(self.drone_type.lower(), {})
 
         return topics
 

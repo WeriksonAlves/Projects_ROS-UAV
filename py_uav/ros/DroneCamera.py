@@ -34,7 +34,7 @@ class DroneCamera(RosCommunication):
         Initialize the DroneCamera instance with ROS topics, publishers, and
         subscribers.
 
-        :param drone_type: Type of drone (e.g., "Bebop2").
+        :param drone_type: Type of drone.
         :param main_dir: Base directory for saving images.
         :param frequency: Frequency for processing camera updates (default: 30
                             Hz).

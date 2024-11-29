@@ -1,227 +1,262 @@
 #!/usr/bin/env python3
-import os
-import numpy as np
-import rospy
-import threading
-from typing import Callable, Tuple
 
 from .commandsandsensors.DroneCommandManager import DroneCommandManager
 from .commandsandsensors.DroneSensorManager import DroneSensorManager
 from .commandsandsensors.DroneSettingManager import DroneSettingManager
+from .ros.DroneCamera import DroneCamera
+from .ros.DroneControl import DroneControl
+from .ros.DroneSensors import DroneSensors
+import numpy as np
+import os
+import rospy
+import threading
+from typing import Callable, Tuple
 
 
 class Bebop2:
     """
-    Manages interaction between a Bebop2 drone and ROS, providing control and
-    sensor access.
+    Interface for controlling and managing the Bebop2 drone using ROS.
+    Provides drone control, sensor management, and camera operations.
     """
 
-    def __init__(self, drone_type: str = 'Bebop2',
-                 ip_address: str = "192.168.0.202", frequency: float = 30.0
-                 ) -> None:
+    def __init__(self, drone_type: str, ip_address: str,
+                 frequency: float = 30.0) -> None:
         """
-        Initialize Bebop2ROS with drone type, IP address, and sensor update
-        frequency.
+        Initialize the Bebop2 class.
 
-        :param drone_type: Type of the drone.
+        :param drone_type: Type of the drone ('bebop2' or 'gazebo').
         :param ip_address: IP address of the drone.
-        :param frequency: Frequency of sensor updates.
+        :param frequency: Frequency for sensor updates in Hz.
         """
-        # Initialize ROS node
-        rospy.init_node('BEBOP2', anonymous=True)
+        rospy.init_node("ROS_UAV", anonymous=True)
 
-        # Initialize drone parameters
         self.drone_type = drone_type
         self.ip_address = ip_address
         self.frequency = frequency
-
-        # Initialize subsystem managers
         self.main_dir = os.path.dirname(os.path.abspath(__file__))
-        self.sensor_manager = DroneSensorManager(
-            drone_type, frequency, ip_address, self.main_dir)
+
+        # Initialize subsystems
+        self.drone_camera = DroneCamera(drone_type, self.main_dir, frequency)
+        self.drone_control = DroneControl(drone_type, frequency)
+        self.drone_sensors = DroneSensors(drone_type, frequency)
+        self.sensor_manager = DroneSensorManager(self.drone_camera,
+                                                 self.drone_sensors)
         self.command_manager = DroneCommandManager(
-            drone_type, frequency, self.sensor_manager)
-        self.state_manager = DroneSettingManager(
-            self.command_manager, self.sensor_manager)
+            self.drone_camera, self.drone_control, self.sensor_manager
+        )
+        self.state_manager = DroneSettingManager(self.command_manager,
+                                                 self.sensor_manager)
 
         # User-defined callback
         self.user_callback: Callable = None
-        self.user_callback_args = None
+        self.user_callback_args = ()
 
-        # Initialize thread for sensor updates
-        self.sensor_thread = threading.Thread(target=self._sensor_update_loop)
-        self.sensor_thread.daemon = True
+        # Start sensor update thread
+        self.sensor_thread = threading.Thread(target=self._sensor_update_loop,
+                                              daemon=True)
         self.sensor_thread.start()
 
-    # User-defined callback methods
     def set_user_sensor_callback(self, callback: Callable, *args) -> None:
         """
-        Registers a user-defined callback function to handle custom events.
+        Register a user-defined callback for sensor updates.
 
-        :param callback: Callable function to register as a callback.
-        :param args: Additional arguments for the callback.
+        :param callback: Function to execute as a callback.
+        :param args: Arguments to pass to the callback.
         """
         self.user_callback = callback
         self.user_callback_args = args
 
     def trigger_callback(self) -> None:
-        """Executes the user-defined callback with provided arguments."""
+        """Execute the user-defined callback with the provided arguments."""
         if self.user_callback:
             self.user_callback(*self.user_callback_args)
 
-    # Drone State Methods
+    # ---- Drone State and Utility Methods ----
+
     def smart_sleep(self, seconds: float) -> None:
-        """Sleep while allowing ROS to continue processing."""
+        """
+        Pause execution while allowing ROS processes to continue.
+
+        :param seconds: Duration to sleep in seconds.
+        """
         rospy.sleep(seconds)
 
     def update_sensors(self) -> None:
-        """
-        Updates sensor data by invoking the sensor manager's update method.
-        """
+        """Update sensor data using the Sensor Manager."""
         self.sensor_manager.update_sensor_data()
 
     def check_connection(self) -> bool:
-        """Checks if the drone is connected to the network."""
-        return self.sensor_manager.check_connection()
+        """
+        Check if the drone is connected to the network.
 
-    # Drone Control Methods
+        :return: True if connected, False otherwise.
+        """
+        return self.sensor_manager.check_connection(self.ip_address)
+
+    # ---- Drone Control Methods ----
+
     def takeoff(self) -> None:
-        """Commands the drone to take off."""
-        self._execute_command(self.command_manager.takeoff, "taking off")
+        """Command the drone to take off."""
+        self._execute_command(self.command_manager.takeoff, "takeoff")
 
     def safe_takeoff(self, timeout: float = 3.0) -> None:
         """
-        Safely takes off the drone by checking altitude.
+        Command the drone to take off safely within a timeout.
 
-        :param timeout: Maximum time to attempt takeoff.
+        :param timeout: Maximum time in seconds to attempt takeoff.
         """
-        action = self._execute_command(
-            lambda: self.command_manager.safe_takeoff(timeout), "taking off")
-        if action:
-            self.smart_sleep(2.0)
-        else:
+        success = self._execute_command(
+            lambda: self.command_manager.safe_takeoff(timeout), "safe takeoff"
+        )
+        if not success:
             self.emergency_land()
-            quit()
 
     def land(self) -> None:
-        """Commands the drone to land."""
+        """Command the drone to land."""
         self._execute_command(self.command_manager.land, "landing")
-
-    def emergency_land(self) -> None:
-        """Executes an emergency stop."""
-        self._execute_command(
-            self.command_manager.emergency_stop, "emergency landing")
-
-    def is_landed(self) -> bool:
-        """Checks if the drone is landed."""
-        return self.sensor_manager.is_landed()
 
     def safe_land(self, timeout: float = 3.0) -> None:
         """
-        Safely lands the drone by checking altitude.
+        Command the drone to land safely within a timeout.
 
-        :param timeout: Maximum time to attempt landing.
+        :param timeout: Maximum time in seconds to attempt landing.
         """
+        success = self._execute_command(
+            lambda: self.command_manager.safe_land(timeout), "safe landing"
+        )
+        if not success:
+            self.emergency_land()
+
+    def emergency_land(self) -> None:
+        """Perform an emergency stop and land."""
         self._execute_command(
-            lambda: self.command_manager.safe_land(timeout), "landing")
+            self.command_manager.emergency_stop, "emergency landing"
+        )
 
-    def fly_direct(self, linear_x: float = 0.0, linear_y: float = 0.0,
-                   linear_z: float = 0.0, angular_z: float = 0.0,
-                   duration: float = 0.0) -> None:
+    def is_landed(self) -> bool:
         """
-        Commands the drone to move directly in the specified direction.
+        Checks if the drone is currently landed.
 
-        :param linear_x: Linear velocity in the x-axis.
-        :param linear_y: Linear velocity in the y-axis.
-        :param linear_z: Linear velocity in the z-axis.
-        :param angular_z: Angular velocity in the z-axis.
-        :param duration: Duration of movement.
+        :return: True if the drone is landed, False otherwise.
         """
+        return self.sensor_manager.is_landed()
+
+    def is_hovering(self) -> bool:
+        """
+        Checks if the drone is currently hovering.
+
+        :return: True if the drone is hovering, False otherwise.
+        """
+        return self.sensor_manager.is_hovering()
+
+    def is_emergency(self) -> bool:
+        """
+        Checks if the drone is in an emergency state.
+
+        :return: True if the drone is in an emergency state, False otherwise.
+        """
+        return self.sensor_manager.is_emergency()
+
+    def fly_direct(self, linear_x: float, linear_y: float, linear_z: float,
+                   angular_z: float, duration: float) -> None:
+        """
+        Command the drone to fly directly with specified velocities.
+
+        :param linear_x: Velocity in the x direction.
+        :param linear_y: Velocity in the y direction.
+        :param linear_z: Velocity in the z direction.
+        :param angular_z: Rotational velocity around the z-axis.
+        :param duration: Duration of movement in seconds.
+        """
+        normalized_velocities = [
+            self._normalize_velocity(v) for v in [
+                linear_x, linear_y, linear_z, angular_z
+            ]
+        ]
         self._execute_command(
             lambda: self.command_manager.fly_direct(
-                self._normalize_command(linear_x),
-                self._normalize_command(linear_y),
-                self._normalize_command(linear_z),
-                self._normalize_command(angular_z),
-                duration
-            ),
-            "moving the drone"
+                *normalized_velocities, duration), "direct flight"
         )
 
     def flip(self, direction: str) -> None:
         """
-        Flips the drone in the specified direction.
+        Command the drone to perform a flip in a specified direction.
 
-        :param direction: Direction of flip ('left', 'right', 'forward',
-                          'backward').
+        :param direction: Flip direction ('left', 'right', 'forward',
+                            'backward').
         """
         self._execute_command(
-            lambda: self.command_manager.flip(direction),
-            f"flipping {direction}")
-
-    def move_relative(self, delta_x: float = 0.0, delta_y: float = 0.0,
-                      delta_z: float = 0.0, delta_yaw: float = 0.0,
-                      power: int = 20) -> None:
-        """
-        Moves the drone in the specified relative direction.
-
-        :param delta_x: Change in x-axis.
-        :param delta_y: Change in y-axis.
-        :param delta_z: Change in z-axis.
-        :param delta_yaw: Change in yaw.
-        :param power: Power of the movement [0 to 100].
-        """
-        self._execute_command(
-            lambda: self.command_manager.move_relative(delta_x, delta_y,
-                                                       delta_z, delta_yaw,
-                                                       power),
-            "moving to relative position"
+            lambda: self.command_manager.flip(direction), f"flip {direction}"
         )
 
-    # Camera Methods
+    def move_relative(self, delta_x: float, delta_y: float, delta_z: float,
+                      delta_yaw: float, power: int) -> None:
+        """
+        Command the drone to move to a relative position.
+
+        :param delta_x: Change in x direction.
+        :param delta_y: Change in y direction.
+        :param delta_z: Change in z direction.
+        :param delta_yaw: Change in yaw angle.
+        :param power: Movement power as a percentage (0 to 100).
+        """
+        self._execute_command(
+            lambda: self.command_manager.move_relative(
+                delta_x, delta_y, delta_z, delta_yaw, power
+            ), "relative movement"
+        )
+
+    # ---- Camera Operations ----
+
     def release_camera(self) -> None:
         """Releases the camera resources."""
         self._execute_command(
-            self.command_manager.release_camera, "releasing camera")
+            self.command_manager.release_camera, "release camera"
+        )
 
-    def take_snapshot(self) -> None:
-        """Captures a snapshot using the drone's camera."""
-        self._execute_command(
-            self.sensor_manager.take_snapshot, "capturing snapshot")
-
-    def pan_tilt_camera(self, tilt: float, pan: float, pitch_comp: float = 0.0,
-                        yaw_comp: float = 0.0) -> None:
+    def adjust_camera_orientation(self, tilt: float, pan: float,
+                                  pitch_comp: float = 0.0,
+                                  yaw_comp: float = 0.0) -> None:
         """
-        Adjusts the camera orientation.
+        Adjust the camera's orientation.
 
-        :param tilt: Vertical movement in degrees.
-        :param pan: Horizontal movement in degrees.
+        :param tilt: Camera tilt angle.
+        :param pan: Camera pan angle.
         :param pitch_comp: Optional pitch compensation.
         :param yaw_comp: Optional yaw compensation.
         """
         self._execute_command(
             lambda: self.command_manager.adjust_camera_orientation(
-                tilt - pitch_comp, pan - yaw_comp),
-            "adjusting camera orientation"
+                tilt - pitch_comp, pan - yaw_comp
+            ), "adjust camera orientation"
         )
 
     def adjust_camera_exposure(self, exposure: float) -> None:
         """
-        Adjusts the camera exposure setting.
+        Adjust the camera's exposure setting.
 
-        :param exposure: Exposure level, typically between -3 to 3.
+        :param exposure: Exposure value between -3 and 3.
         """
         self._execute_command(
             lambda: self.command_manager.adjust_camera_exposure(exposure),
-            "adjusting camera exposure")
+            "adjust camera exposure"
+        )
 
-    def read_image(self, subscriber: str = 'compressed') -> Tuple[bool,
+    def take_snapshot(self) -> None:
+        """Capture a snapshot from the camera."""
+        ret, frame = self.read_image()
+        if ret:
+            self._execute_command(
+                lambda: self.command_manager.save_snapshot(frame), "snapshot"
+            )
+
+    def read_image(self, subscriber: str = "compressed") -> Tuple[bool,
                                                                   np.ndarray]:
         """
-        Reads an image from the drone's camera.
+        Read an image from the drone's camera.
 
-        :param subscriber: The name of the image data subscriber to use.
-        :return: A tuple containing a success flag and the image data.
+        :param subscriber: Subscriber type for image data.
+        :return: Tuple of success flag and image array.
         """
         try:
             return self.sensor_manager.read_image(subscriber)
@@ -229,47 +264,53 @@ class Bebop2:
             rospy.loginfo(f"Error reading image: {e}")
             return False, np.array([])
 
-    def start_video_stream(self) -> bool:
-        """Starts the video stream from the drone's camera."""
-        return self.sensor_manager.check_camera()
+    def camera_on(self) -> bool:
+        """Check if the camera is operational."""
+        if self.sensor_manager.is_camera_operational():
+            rospy.loginfo("Camera is operational.")
+            return True
+        else:
+            rospy.loginfo("Camera is not operational. Verify connection.")
+            return False
 
-    # Helper Methods
-    def _normalize_command(self, value, prop: int = 100, max_val: float = 1.0,
-                           min_val: float = -1.0) -> float:
+    # ---- Helper Methods ----
+
+    def _normalize_velocity(self, value: float, scale: int = 100,
+                            min_val: float = -1.0, max_val: float = 1.0
+                            ) -> float:
         """
-        Normalizes a command value between a specified range.
+        Normalize a velocity value within a specified range.
 
-        :param value: The input value to normalize.
-        :param prop: Proportional scaling factor.
-        :param max_val: Maximum allowed value.
+        :param value: Input velocity value.
+        :param scale: Scaling factor.
         :param min_val: Minimum allowed value.
-        :return: Normalized value.
+        :param max_val: Maximum allowed value.
+        :return: Normalized velocity.
         """
-        return max(min(value / prop, max_val), min_val)
+        return max(min(value / scale, max_val), min_val)
 
     def _execute_command(self, command: Callable, action_description: str
-                         ) -> None:
+                         ) -> bool:
         """
-        Executes a drone command with error handling.
+        Execute a drone command safely with error handling.
 
         :param command: The command to execute.
         :param action_description: Description of the action for logging.
+        :return: True if the command succeeded, False otherwise.
         """
         try:
-            return command()
+            command()
+            rospy.loginfo(f"Successfully executed: {action_description}.")
+            return True
         except Exception as e:
             rospy.loginfo(f"Error during {action_description}: {e}")
+            return False
 
-    def _sensor_update_loop(self):
-        rate = rospy.Rate(10)  # Set your desired loop frequency
-
-        try:
-            while not rospy.is_shutdown():
-                self.update_sensors()
-                rate.sleep()
-        except rospy.ROSInterruptException:
-            rospy.loginfo(
-                "Sensor update loop interrupted due to ROS shutdown.")
-
-        # Additional cleanup if needed
-        rospy.loginfo("Exiting sensor update loop gracefully.")
+    def _sensor_update_loop(self) -> None:
+        """
+        Background loop for updating sensors at a fixed rate.
+        """
+        rate = rospy.Rate(self.frequency)
+        while not rospy.is_shutdown():
+            self.update_sensors()
+            rate.sleep()

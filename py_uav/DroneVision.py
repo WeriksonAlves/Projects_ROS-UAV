@@ -1,27 +1,33 @@
-import cv2
-import threading
-import time
 from typing import Callable, Optional
 from pathlib import Path
 from .Bebop2 import Bebop2
+import cv2
+import threading
+import time
 
 
 class SingletonDirectoryManager:
-    """Singleton pattern to manage the creation of image directories."""
+    """
+    Singleton to manage image directories for DroneVision.
+    Ensures directory creation and optional cleanup of old images.
+    """
 
     _instance = None
 
     def __new__(cls, path: Path, cleanup_old_images: bool
                 ) -> 'SingletonDirectoryManager':
-        if not cls._instance:
-            cls._instance = super(SingletonDirectoryManager, cls).__new__(cls)
-            cls._instance.path = path
-            cls._instance.cleanup_old_images = cleanup_old_images
-            cls._instance._prepare_directory()
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialize(path, cleanup_old_images)
         return cls._instance
 
+    def _initialize(self, path: Path, cleanup_old_images: bool) -> None:
+        self.path = path
+        self.cleanup_old_images = cleanup_old_images
+        self._prepare_directory()
+
     def _prepare_directory(self) -> None:
-        """Prepare the directory by cleaning up old images if necessary."""
+        """Create or clean the directory based on the configuration."""
         if self.cleanup_old_images and self.path.exists():
             for image_file in self.path.glob("*.png"):
                 image_file.unlink()
@@ -30,132 +36,133 @@ class SingletonDirectoryManager:
 
 class DroneVision:
     """
-    Manages real-time video streaming and image processing from a Bebop2 drone.
-
-    Integrates with Bebop2ROS for camera control and provides a callback
-    function interface for custom image processing.
+    Handles real-time video streaming and image processing for the Bebop2
+    drone. Provides video buffering and an interface for user-defined frame
+    processing.
     """
 
-    def __init__(self, drone_object: Bebop2, buffer_size: int = 200,
+    def __init__(self, drone: Bebop2, buffer_size: int = 200,
                  cleanup_old_images: bool = True) -> None:
         """
         Initialize the DroneVision instance.
 
-        :param drone_object: Reference to the Bebop2ROS instance.
+        :param drone: Bebop2 drone instance for accessing camera and sensors.
         :param buffer_size: Number of frames to buffer in memory.
-        :param cleanup_old_images: If True, removes old images from the
-                                   directory.
+        :param cleanup_old_images: If True, removes old images from the 
+                                    directory.
         """
-        self.drone_object = drone_object
+        self.drone = drone
         self.buffer_size = buffer_size
-        self.image_index = 1
+        self.image_index = 0
 
-        # Image directory setup
+        # Set up image directory using SingletonDirectoryManager
         main_path = Path(__file__).resolve().parent
         self.image_dir = main_path / "images" / "internal"
-        self.directory_manager = SingletonDirectoryManager(self.image_dir,
-                                                           cleanup_old_images)
+        SingletonDirectoryManager(self.image_dir, cleanup_old_images)
 
-        # Initialize video buffer
+        # Initialize video buffer and threading
         self.buffer = [None] * buffer_size
         self.buffer_index = 0
         self.vision_running = False
-        self.new_frame = threading.Event()
+        self.new_frame_event = threading.Event()
 
-        # Thread management for video streaming and user callback
-        self.vision_thread = threading.Thread(target=self._buffer_vision,
+        # Thread management
+        self.vision_thread = threading.Thread(target=self._buffer_frames,
                                               daemon=True)
-        self.user_vision_thread = None
+        self.user_callback_thread: Optional[threading.Thread] = None
 
-    def set_user_callback(self, callback_function: Optional[Callable] = None,
-                          *callback_args) -> None:
+    def set_user_callback(self, callback: Optional[Callable] = None, *args
+                          ) -> None:
         """
-        Sets an optional callback for processing vision frames.
+        Register a user-defined callback to process each new frame.
 
-        :param callback_function: Callback function for custom frame handling.
-        :param callback_args: Additional arguments for the callback function.
+        :param callback: Function to process frames.
+        :param args: Additional arguments for the callback.
         """
-        if callback_function:
-            self.user_vision_thread = threading.Thread(
-                target=self._user_callback, args=(callback_function,
-                                                  *callback_args), daemon=True
+        if callback:
+            self.user_callback_thread = threading.Thread(
+                target=self._execute_user_callback,
+                args=(callback, *args), daemon=True
             )
 
     def open_camera(self) -> bool:
         """
-        Opens the video stream using Bebop2ROS camera controls.
+        Open the video stream using the drone's camera.
 
-        :return: True if the stream opened successfully, False otherwise.
+        :return: True if the camera opened successfully, otherwise False.
         """
-        success = self.drone_object.sensor_manager.check_camera()
-        if success:
-            self.start_video_buffering()
-        return success
+        if self.drone.camera_on():
+            self.start_video_stream()
+            return True
+        return False
 
-    def start_video_buffering(self) -> None:
+    def start_video_stream(self) -> None:
         """
-        Starts threads for buffering the video and processing frames.
+        Start video buffering and user callback threads.
         """
-        print("Starting vision thread.")
-        self.vision_running = True
-        self.vision_thread.start()
+        if not self.vision_running:
+            self.vision_running = True
+            self.vision_thread.start()
+            if self.user_callback_thread:
+                self.user_callback_thread.start()
 
-        if self.user_vision_thread:
-            self.user_vision_thread.start()
-
-    def _user_callback(self, callback_function: Callable, *callback_args
-                       ) -> None:
+    def _execute_user_callback(self, callback: Callable, *args) -> None:
         """
-        Calls the user-defined callback with each new frame.
+        Continuously execute the user-defined callback for each new frame.
 
-        :param callback_function: Function to process each frame.
-        :param callback_args: Additional arguments for the callback.
+        :param callback: The user-defined processing function.
+        :param args: Additional arguments for the callback.
         """
         while self.vision_running:
-            if self.new_frame.is_set():
-                callback_function(*callback_args)
-                self.new_frame.clear()
+            if self.new_frame_event.is_set():
+                callback(*args)
+                self.new_frame_event.clear()
+            time.sleep(1 / 90)  # Slightly faster than expected frame rate
 
-            # Faster than FPS to stay in sync without busy-waiting
-            time.sleep(1 / 90)
-
-    def _buffer_vision(self) -> None:
+    def _buffer_frames(self) -> None:
         """
-        Buffers frames from the video stream, storing each in the buffer.
+        Buffer frames from the drone's camera into a circular buffer.
         """
         while self.vision_running:
-            img = self.drone_object.sensor_manager.drone_camera.image_data.get(
-                'compressed')
-            if img is not None and img.size > 0:  # Check if img is non-empty
-                self.image_index += 1
-                self.buffer[self.buffer_index] = img
+            frame = self.drone.sensor_manager.drone_camera.image_data.get(
+                'compressed'
+            )
+            if frame is not None and frame.size > 0:
+                self.buffer[self.buffer_index] = frame
                 self.buffer_index = (self.buffer_index + 1) % self.buffer_size
-                self.new_frame.set()
-
-            # Maintain buffer rate at ~2x FPS for efficiency
-            time.sleep(1 / 60)
+                self.image_index += 1
+                self.new_frame_event.set()
+            time.sleep(1 / 60)  # Match ~2x typical FPS for efficiency
 
     def get_latest_frame(self) -> Optional[cv2.Mat]:
         """
-        Retrieves the most recent valid frame from the buffer.
+        Retrieve the most recent valid frame from the buffer.
 
-        :return: Latest frame if available, else None.
+        :return: The latest frame, or None if no valid frame is available.
         """
-        # Check if the buffer at the latest index is not None and contains data
-        latest_frame = self.buffer[self.buffer_index - 1]
+        latest_frame = self.buffer[(self.buffer_index - 1) % self.buffer_size]
         if latest_frame is not None and latest_frame.size > 0:
             return latest_frame
         return None
 
-    def close_video_stream(self) -> None:
+    def close_camera(self) -> None:
         """
-        Stops the video stream and all related threads.
+        Stop video streaming and join all related threads.
         """
         self.vision_running = False
-        print("Closing video stream.")
-
         if self.vision_thread.is_alive():
             self.vision_thread.join()
+        if self.user_callback_thread and self.user_callback_thread.is_alive():
+            self.user_callback_thread.join()
 
-        if self.user_vision_thread and self.user_vision_thread.is_alive():
-            self.user_vision_thread.join()
+    def save_frame_to_disk(self, frame: cv2.Mat,
+                           filename: Optional[str] = None) -> None:
+        """
+        Save a frame to disk in the image directory.
+
+        :param frame: Frame to save.
+        :param filename: Optional filename. If None, use a sequential index.
+        """
+        filename = filename or f"frame_{self.image_index:05d}.png"
+        filepath = self.image_dir / filename
+        cv2.imwrite(str(filepath), frame)

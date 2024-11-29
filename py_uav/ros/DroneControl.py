@@ -28,7 +28,7 @@ class DroneControl(RosCommunication):
         Initializes the DroneControl class with ROS publishers for drone
         commands.
 
-        :param drone_type: The type of the drone (e.g., "Bebop2" or "Gazebo").
+        :param drone_type: The type of the drone.
         :param frequency: Command frequency in Hz (default: 30).
         """
         if getattr(self, '_initialized', False):
@@ -73,7 +73,7 @@ class DroneControl(RosCommunication):
                 'reset': ('/bebop/reset', Empty),
                 'cmd_vel': ('/bebop/cmd_vel', Twist),
             },
-        }.get(self.drone_type.upper(), {})
+        }.get(self.drone_type.lower(), {})
 
         if not topics:
             rospy.logwarn(f"Unknown drone type: {self.drone_type}")

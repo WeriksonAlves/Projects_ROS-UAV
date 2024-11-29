@@ -6,7 +6,6 @@ unified access for handling drone operations.
 """
 
 from ..ros.DroneCamera import DroneCamera
-from ..ros.DroneControl import DroneControl
 from ..ros.DroneSensors import DroneSensors
 from typing import Dict, Tuple
 import numpy as np
@@ -19,21 +18,17 @@ class DroneSensorManager:
     Facade for managing the drone's sensor data, control states, and camera.
     """
 
-    def __init__(self, drone_type: str, frequency: int, ip_address: str,
-                 main_dir: str) -> None:
+    def __init__(self, drone_camera: DroneCamera, drone_sensors: DroneSensors
+                 ) -> None:
         """
         Initialize DroneSensorManager with the specified drone type and
         configuration.
 
-        :param drone_type: The type of the drone (e.g., 'bebop2').
-        :param frequency: Frequency for sensor data updates (in Hz).
-        :param ip_address: IP address of the drone for connectivity checks.
-        :param main_dir: Base directory for saving images or logs.
+        :param drone_camera: DroneCamera object for handling camera operations.
+        :param drone_sensors: DroneSensors object for handling sensor data.
         """
-        self.drone_camera = DroneCamera(drone_type, main_dir, frequency)
-        self.drone_control = DroneControl(drone_type, frequency)
-        self.drone_sensors = DroneSensors(drone_type, frequency)
-        self.ip_address = ip_address
+        self.drone_camera = drone_camera
+        self.drone_sensors = drone_sensors
 
         self.sensor_data = self._initialize_sensor_data()
         self.status_flags = self._initialize_status_flags()
@@ -120,16 +115,18 @@ class DroneSensorManager:
         """
         return self.sensor_data.get('battery_level', 0)
 
-    def check_connection(self, signal_threshold: int = -40) -> bool:
+    def check_connection(self, ip_address: str, signal_threshold: int = -40
+                         ) -> bool:
         """
         Check the drone's connectivity and signal strength.
 
+        :param ip_address: IP address of the drone.
         :param signal_threshold: Minimum acceptable Wi-Fi signal strength
                                     (default: -40 dBm).
         :return: True if connected and signal strength is above the threshold,
                     False otherwise.
         """
-        connection_status = os.system(f"ping -c 1 {self.ip_address}") == 0
+        connection_status = os.system(f"ping -c 1 {ip_address}") == 0
         wifi_signal = self.sensor_data.get('wifi_signal', -100)
 
         if connection_status and wifi_signal > signal_threshold:
