@@ -149,8 +149,13 @@ class DroneSensors(RosCommunication):
         self._update_sensor("wifi_signal", data.rssi)
 
     # Gazebo-specific processing
-    def _process_general_info(self, pose: Pose) -> None:
-        self._update_sensor("pose", self._extract_pose(pose))
+    def _process_general_info(self, data: Pose) -> None:
+        self._update_sensor("attitude", self._quaternion_to_euler(
+            data.orientation.x, data.orientation.y, data.orientation.z,
+            data.orientation.w
+        ))
+        self._update_sensor("position", [data.position.x, data.position.y,
+                                         data.position.z])
 
     def _process_ground_truth(self, data: Odometry) -> None:
         self._update_sensor("ground_truth", self._extract_odometry(data))

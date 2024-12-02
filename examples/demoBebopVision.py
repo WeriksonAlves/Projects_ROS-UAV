@@ -1,5 +1,6 @@
-from py_uav import DroneVision, Bebop2
+from Projects_ROS_UAV.py_uav import DroneVision, Bebop2
 import cv2
+import rospy
 
 
 class UserVision:
@@ -24,7 +25,8 @@ class UserVision:
         """
         img = self.vision.get_latest_frame()
         if img is not None:
-            filename = f"Projects_ROS-UAV/py_uav/images/image_{self.index:04d}.png"
+            main_name = "Projects_ROS-UAV/py_uav/images/image_"
+            filename = f"{main_name}{self.index:04d}.png"
             cv2.imwrite(filename, img)
             self.index += 1
 
@@ -51,7 +53,7 @@ class Bebop2Vision:
 
         :param drone_type: Type of the drone (e.g., 'Gazebo' or 'bebop2').
         """
-        self.bebop = Bebop2(drone_type=drone_type)
+        self.bebop = Bebop2(drone_type=drone_type, ip_address='192.168.0.202')
         self.vision = None
         self.user_vision = None
 
@@ -61,11 +63,18 @@ class Bebop2Vision:
 
         :return: True if the drone was successfully connected, False otherwise.
         """
-        if self.bebop.check_connection():
-            print("Bebop2 connected.")
-            return True
-        print("Error connecting to Bebop. Try again.")
-        return False
+        try:
+            if self.bebop.check_connection():
+                print("Bebop2 connected.")
+                return True
+            print("Error connecting to Bebop. Check the connection.")
+            return False
+        except KeyboardInterrupt:
+            print("Shutdown requested. Cleaning up...")
+        finally:
+            self.bebop._shutdown_flag = True  # Signal threads to stop
+            rospy.signal_shutdown("User requested shutdown")
+            print("Clean shutdown complete.")
 
     def print_battery_level(self) -> None:
         """

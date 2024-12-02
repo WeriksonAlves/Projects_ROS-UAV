@@ -48,7 +48,7 @@ class DroneVision:
 
         :param drone: Bebop2 drone instance for accessing camera and sensors.
         :param buffer_size: Number of frames to buffer in memory.
-        :param cleanup_old_images: If True, removes old images from the 
+        :param cleanup_old_images: If True, removes old images from the
                                     directory.
         """
         self.drone = drone

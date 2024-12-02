@@ -6,11 +6,11 @@ from .commandsandsensors.DroneSettingManager import DroneSettingManager
 from .ros.DroneCamera import DroneCamera
 from .ros.DroneControl import DroneControl
 from .ros.DroneSensors import DroneSensors
+from typing import Callable, Tuple
 import numpy as np
 import os
 import rospy
 import threading
-from typing import Callable, Tuple
 
 
 class Bebop2:
@@ -46,6 +46,7 @@ class Bebop2:
         )
         self.state_manager = DroneSettingManager(self.command_manager,
                                                  self.sensor_manager)
+        self._shutdown_flag = False  # Add shutdown flag for threads
 
         # User-defined callback
         self.user_callback: Callable = None
@@ -84,6 +85,7 @@ class Bebop2:
     def update_sensors(self) -> None:
         """Update sensor data using the Sensor Manager."""
         self.sensor_manager.update_sensor_data()
+        # print(self.sensor_manager.sensor_data)
 
     def check_connection(self) -> bool:
         """
@@ -311,6 +313,11 @@ class Bebop2:
         Background loop for updating sensors at a fixed rate.
         """
         rate = rospy.Rate(self.frequency)
-        while not rospy.is_shutdown():
-            self.update_sensors()
-            rate.sleep()
+        try:
+            while not rospy.is_shutdown() and not self._shutdown_flag:
+                self.update_sensors()
+                rate.sleep()
+        except rospy.exceptions.ROSInterruptException:
+            rospy.loginfo("Sensor update loop interrupted by ROS shutdown.")
+        finally:
+            rospy.loginfo("Sensor update loop exiting cleanly.")

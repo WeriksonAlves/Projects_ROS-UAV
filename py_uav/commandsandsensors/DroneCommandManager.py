@@ -73,8 +73,6 @@ class DroneCommandManager:
 
     def land(self) -> None:
         """Commands the drone to land."""
-        if not self._validate_command(is_hovering_required=True):
-            return
         rospy.loginfo("Initiating landing...")
         self.drone_control.land()
         self.sensor_manager.change_status_flags('hovering', False)
@@ -89,9 +87,6 @@ class DroneCommandManager:
         :param timeout: Maximum duration for the takeoff operation (seconds).
         :return: True if the drone successfully takes off, False otherwise.
         """
-        if not self._validate_command(is_landed_required=True):
-            return False
-
         rospy.loginfo("Starting safe takeoff...")
         start_time = rospy.get_time()
 

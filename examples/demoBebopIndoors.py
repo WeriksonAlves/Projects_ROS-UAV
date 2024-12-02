@@ -1,4 +1,4 @@
-from py_uav.Bebop2 import Bebop2
+from Projects_ROS_UAV.py_uav import Bebop2
 
 
 class Bebop2DroneManager:
@@ -7,14 +7,15 @@ class Bebop2DroneManager:
     connection, sensor updates, state management, and flight logic.
     """
 
-    def __init__(self, drone_type: str = 'bebop2') -> None:
+    def __init__(self, drone_type: str = 'bebop2', ip_address='192.168.0.202'
+                 ) -> None:
         """
         Initializes the Bebop2DroneManager instance.
 
         :param drone_type: The type of drone being controlled. Default is
                             'bebop2'.
         """
-        self.drone = Bebop2(drone_type=drone_type)
+        self.drone = Bebop2(drone_type=drone_type, ip_address=ip_address)
 
     def connect_to_drone(self) -> bool:
         """
@@ -44,7 +45,7 @@ class Bebop2DroneManager:
         Starts the video stream from the drone and allows it to stabilize.
         """
         print("Starting video stream...")
-        self.drone.start_video_stream()
+        self.drone.camera_on()
         self.drone.smart_sleep(2)  # Wait for the video stream to stabilize
 
     def update_drone_sensors(self) -> None:
@@ -90,7 +91,7 @@ class Bebop2DroneManager:
         """
         Executes the full experimental procedure with the Bebop2 drone.
         """
-        if not self.connect_to_drone():
+        if not self.connect_to_drone() and self.drone.drone_type == 'bebop2':
             return
 
         self.print_battery_level()
@@ -98,7 +99,7 @@ class Bebop2DroneManager:
         self.update_drone_sensors()
 
         self.drone.takeoff()
-        self.configure_indoor_flight()
+        # self.configure_indoor_flight()
         self.perform_indoor_flight()
 
         self.land_drone()
@@ -108,5 +109,5 @@ class Bebop2DroneManager:
 
 
 if __name__ == "__main__":
-    drone_manager = Bebop2DroneManager()
+    drone_manager = Bebop2DroneManager('gazebo')
     drone_manager.run_experiment()
