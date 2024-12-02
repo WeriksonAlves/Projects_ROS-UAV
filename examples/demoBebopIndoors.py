@@ -1,4 +1,4 @@
-from Projects_ROS_UAV.py_uav import Bebop2
+from Projects_ROS_UAV.rospy_uav import Bebop2
 
 
 class Bebop2DroneManager:

@@ -1,4 +1,4 @@
-from Projects_ROS_UAV.py_uav import DroneVision, Bebop2
+from Projects_ROS_UAV.rospy_uav import DroneVision, Bebop2
 import cv2
 import rospy
 
