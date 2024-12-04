@@ -45,8 +45,7 @@ class DroneCamera(RosCommunication):
         super().__init__(drone_type, frequency)
         self.base_filename = os.path.join(main_dir, 'images', 'internal')
         self.last_command_time = rospy.get_time()
-        self.image_data = {key: None for key in ['image', 'compressed',
-                                                 'depth', 'theora']}
+        self.image_data = {key: None for key in ['image', 'compressed']}
         self.success_flags = {key: False for key in self.image_data}
         self.bridge = CvBridge()
         self.orientation = {'tilt': 0.0, 'pan': 0.0}
@@ -83,15 +82,11 @@ class DroneCamera(RosCommunication):
         topic_mapping = {
             'gazebo': {
                 'image': "/bebop2/camera_base/image_raw",
-                'compressed': "/bebop2/camera_base/image_raw/compressed",
-                'depth': "/bebop2/camera_base/image_raw/compressedDepth",
-                'theora': "/bebop2/camera_base/image_raw/theora",
+                'compressed': "/bebop2/camera_base/image_raw/compressed"
             },
             'bebop2': {
                 'image': "/bebop/image_raw",
                 'compressed': "/bebop/image_raw/compressed",
-                'depth': "/bebop/image_raw/compressedDepth",
-                'theora': "/bebop/image_raw/theora",
                 'camera_orientation':
                     "/bebop/states/ardrone3/CameraState/Orientation",
             },
@@ -113,8 +108,6 @@ class DroneCamera(RosCommunication):
         msg_types = {
             'image': Image,
             'compressed': CompressedImage,
-            'depth': CompressedImage,
-            'theora': CompressedImage,
             'camera_orientation': Ardrone3CameraStateOrientation,
         }
         return msg_types[key]
@@ -124,8 +117,6 @@ class DroneCamera(RosCommunication):
         callbacks = {
             'image': self._process_raw_image,
             'compressed': self._process_compressed_image,
-            'depth': self._process_compressed_depth_image,
-            'theora': self._process_theora_image,
             'camera_orientation': self._update_orientation,
         }
         return callbacks[key]
@@ -148,16 +139,6 @@ class DroneCamera(RosCommunication):
         """Processes compressed image data from the ROS topic."""
         if self._time_to_update():
             self._process_image(data, 'compressed')
-
-    def _process_compressed_depth_image(self, data: CompressedImage) -> None:
-        """Processes compressed depth image data from the ROS topic."""
-        if self._time_to_update():
-            self._process_image(data, 'depth')
-
-    def _process_theora_image(self, data: CompressedImage) -> None:
-        """Processes Theora-encoded image data from the ROS topic."""
-        if self._time_to_update():
-            self._process_image(data, 'theora')
 
     def _update_orientation(self, data: Ardrone3CameraStateOrientation
                             ) -> None:

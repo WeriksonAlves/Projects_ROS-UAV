@@ -18,8 +18,8 @@ class DroneSensorManager:
     Facade for managing the drone's sensor data, control states, and camera.
     """
 
-    def __init__(self, drone_camera: DroneCamera, drone_sensors: DroneSensors
-                 ) -> None:
+    def __init__(self, drone_camera: DroneCamera, drone_sensors: DroneSensors,
+                 show_log: bool = False) -> None:
         """
         Initialize DroneSensorManager with the specified drone type and
         configuration.
@@ -29,6 +29,7 @@ class DroneSensorManager:
         """
         self.drone_camera = drone_camera
         self.drone_sensors = drone_sensors
+        self.show_log = show_log
 
         self.sensor_data = self._initialize_sensor_data()
         self.status_flags = self._initialize_status_flags()
@@ -130,8 +131,9 @@ class DroneSensorManager:
         wifi_signal = self.sensor_data.get('wifi_signal', -100)
 
         if connection_status and wifi_signal > signal_threshold:
-            rospy.loginfo(
-                f"Drone connected with signal strength: {wifi_signal} dBm")
+            if self.show_log:
+                rospy.loginfo(
+                    f"Drone connected with signal strength: {wifi_signal} dBm")
             self.status_flags['connected'] = True
             return True
 

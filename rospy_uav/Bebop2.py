@@ -20,7 +20,7 @@ class Bebop2:
     """
 
     def __init__(self, drone_type: str, ip_address: str,
-                 frequency: float = 30.0) -> None:
+                 frequency: float = 30.0, show_log: bool = False) -> None:
         """
         Initialize the Bebop2 class.
 
@@ -33,6 +33,7 @@ class Bebop2:
         self.drone_type = drone_type
         self.ip_address = ip_address
         self.frequency = frequency
+        self.show_log = show_log
         self.main_dir = os.path.dirname(os.path.abspath(__file__))
 
         # Initialize subsystems
@@ -164,10 +165,10 @@ class Bebop2:
         """
         Command the drone to fly directly with specified velocities.
 
-        :param linear_x: Velocity in the x direction.
-        :param linear_y: Velocity in the y direction.
-        :param linear_z: Velocity in the z direction.
-        :param angular_z: Rotational velocity around the z-axis.
+        :param linear_x: Velocity in the x direction [0 to 100].
+        :param linear_y: Velocity in the y direction [0 to 100].
+        :param linear_z: Velocity in the z direction [0 to 100].
+        :param angular_z: Rotational velocity around the z-axis [0 to 100].
         :param duration: Duration of movement in seconds.
         """
         normalized_velocities = [
@@ -263,16 +264,19 @@ class Bebop2:
         try:
             return self.sensor_manager.read_image(subscriber)
         except Exception as e:
-            rospy.loginfo(f"Error reading image: {e}")
+            if self.show_log:
+                rospy.loginfo(f"Error reading image: {e}")
             return False, np.array([])
 
     def camera_on(self) -> bool:
         """Check if the camera is operational."""
         if self.sensor_manager.is_camera_operational():
-            rospy.loginfo("Camera is operational.")
+            if self.show_log:
+                rospy.loginfo("Camera is operational.")
             return True
         else:
-            rospy.loginfo("Camera is not operational. Verify connection.")
+            if self.show_log:
+                rospy.loginfo("Camera is not operational. Verify connection.")
             return False
 
     # ---- Helper Methods ----
@@ -302,10 +306,12 @@ class Bebop2:
         """
         try:
             command()
-            rospy.loginfo(f"Successfully executed: {action_description}.")
+            if self.show_log:
+                rospy.loginfo(f"Successfully executed: {action_description}.")
             return True
         except Exception as e:
-            rospy.loginfo(f"Error during {action_description}: {e}")
+            if self.show_log:
+                rospy.loginfo(f"Error during {action_description}: {e}")
             return False
 
     def _sensor_update_loop(self) -> None:
@@ -318,6 +324,9 @@ class Bebop2:
                 self.update_sensors()
                 rate.sleep()
         except rospy.exceptions.ROSInterruptException:
-            rospy.loginfo("Sensor update loop interrupted by ROS shutdown.")
+            if self.show_log:
+                rospy.loginfo(
+                    "Sensor update loop interrupted by ROS shutdown.")
         finally:
-            rospy.loginfo("Sensor update loop exiting cleanly.")
+            if self.show_log:
+                rospy.loginfo("Sensor update loop exiting cleanly.")

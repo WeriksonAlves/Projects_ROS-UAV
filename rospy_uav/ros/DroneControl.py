@@ -23,7 +23,8 @@ class DroneControl(RosCommunication):
             cls._instance = super(DroneControl, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, drone_type: str, frequency: int = 30):
+    def __init__(self, drone_type: str, frequency: int = 30,
+                 show_log: bool = False) -> None:
         """
         Initializes the DroneControl class with ROS publishers for drone
         commands.
@@ -35,8 +36,9 @@ class DroneControl(RosCommunication):
             return  # Prevent reinitialization in Singleton pattern
 
         super().__init__(drone_type, frequency)  # self.command_interval
+        self.show_log = show_log
         self.last_command_time = rospy.get_time()
-        self.vel_cmd = Twist()
+        self.cmd_vel = Twist()
 
         # Set up ROS publishers and parameters
         self.publishers = self._initialize_publishers()
@@ -92,7 +94,8 @@ class DroneControl(RosCommunication):
         publisher: rospy.Publisher = self.publishers.get(command)
         if publisher:
             publisher.publish(message or Empty())
-            rospy.loginfo(f"Published '{command}' command.")
+            if self.show_log:
+                rospy.loginfo(f"Published '{command}' command.")
         else:
             rospy.logwarn(f"Command '{command}' is not available for this"
                           " drone type.")
@@ -131,16 +134,16 @@ class DroneControl(RosCommunication):
         """
         Commands the drone to move with the specified velocities.
 
-        :param linear_x: Forward/backward velocity (m/s).
-        :param linear_y: Left/right velocity (m/s).
-        :param linear_z: Up/down velocity (m/s).
-        :param angular_z: Rotational velocity around the Z-axis (rad/s).
+        :param linear_x: Forward/backward (+/-) velocity. [-1, 1]
+        :param linear_y: Left/right (+/-) velocity. [-1, 1]
+        :param linear_z: Up/down (+/-) velocity. [-1, 1]
+        :param angular_z: Rotational (+/-) velocity around the Z-axis. [-1, 1]
         """
-        self.vel_cmd.linear.x = linear_x
-        self.vel_cmd.linear.y = linear_y
-        self.vel_cmd.linear.z = linear_z
-        self.vel_cmd.angular.z = angular_z
-        # self._publish_command('cmd_vel', self.vel_cmd)
+        self.cmd_vel.linear.x = linear_x
+        self.cmd_vel.linear.y = linear_y
+        self.cmd_vel.linear.z = linear_z
+        self.cmd_vel.angular.z = angular_z
+        self._publish_command('cmd_vel', self.cmd_vel)
 
     def flattrim(self) -> None:
         """Commands the drone to perform a flat trim calibration."""

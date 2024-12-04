@@ -20,7 +20,8 @@ class DroneCommandManager:
     """
 
     def __init__(self, drone_camera: DroneCamera, drone_control: DroneControl,
-                 sensor_manager: DroneSensorManager) -> None:
+                 sensor_manager: DroneSensorManager, show_log: bool = False
+                 ) -> None:
         """
         Initializes the DroneCommandManager.
 
@@ -32,13 +33,15 @@ class DroneCommandManager:
         self.drone_camera = drone_camera
         self.drone_control = drone_control
         self.sensor_manager = sensor_manager
+        self.show_log = show_log
         self.snapshot_counter = 0
 
     # Drone Command Methods
 
     def _validate_command(self, is_emergency_allowed: bool = False,
                           is_hovering_required: bool = False,
-                          is_landed_required: bool = False) -> bool:
+                          is_landed_required: bool = False,
+                          is_moving_required: bool = False) -> bool:
         """
         Validates whether a command can be executed based on drone state.
 
@@ -48,36 +51,42 @@ class DroneCommandManager:
                                         xecute the command.
         :param is_landed_required: Whether the drone must be landed to execute
                                     the command.
+        :param is_moving_required: Whether the drone must be moving to execute
+                                    the command.
         :return: True if the command is valid, False otherwise.
         """
         if self.sensor_manager.is_emergency() and not is_emergency_allowed:
-            rospy.logwarn("Command ignored: Emergency state active.")
-            return False
-        if is_hovering_required and not self.sensor_manager.is_hovering():
-            rospy.logwarn("Command ignored: Drone is not hovering.")
-            return False
-        if is_landed_required and not self.sensor_manager.is_landed():
-            rospy.logwarn("Command ignored: Drone is not landed.")
-            return False
-        return True
+            return True
+        if not (is_hovering_required and self.sensor_manager.is_hovering()):
+            return True
+        if not (is_landed_required and self.sensor_manager.is_landed()):
+            return True
+        if not (is_moving_required and self.sensor_manager.is_moving()):
+            return True
+        rospy.logwarn("Command ignored")
+        return False
 
     def takeoff(self) -> None:
         """Commands the drone to take off."""
         if not self._validate_command(is_landed_required=True):
             return
-        rospy.loginfo("Initiating takeoff...")
+        if self.show_log:
+            rospy.loginfo("Initiating takeoff...")
         self.drone_control.takeoff()
-        self.sensor_manager.change_status_flags('landed', False)
-        self.sensor_manager.change_status_flags('hovering', True)
-        rospy.loginfo("Drone has taken off.")
+        self.sensor_manager.status_flags.update({'hovering': True,
+                                                 'landed': False})
+        if self.show_log:
+            rospy.loginfo("Drone has taken off.")
 
     def land(self) -> None:
         """Commands the drone to land."""
-        rospy.loginfo("Initiating landing...")
+        if self.show_log:
+            rospy.loginfo("Initiating landing...")
         self.drone_control.land()
-        self.sensor_manager.change_status_flags('hovering', False)
-        self.sensor_manager.change_status_flags('landed', True)
-        rospy.loginfo("Drone has landed.")
+        self.sensor_manager.status_flags.update({'hovering': False,
+                                                 'landed': True})
+        if self.show_log:
+            rospy.loginfo("Drone has landed.")
 
     def safe_takeoff(self, heigth: float = 0.5, timeout: float = 3.0) -> bool:
         """
@@ -87,7 +96,8 @@ class DroneCommandManager:
         :param timeout: Maximum duration for the takeoff operation (seconds).
         :return: True if the drone successfully takes off, False otherwise.
         """
-        rospy.loginfo("Starting safe takeoff...")
+        if self.show_log:
+            rospy.loginfo("Starting safe takeoff...")
         start_time = rospy.get_time()
 
         while rospy.get_time() - start_time < timeout:
@@ -95,9 +105,10 @@ class DroneCommandManager:
             rospy.sleep(0.1)
             if self.sensor_manager.get_sensor_data().get('altitude', 0.0
                                                          ) > heigth:
-                self.sensor_manager.change_status_flags('landed', False)
-                self.sensor_manager.change_status_flags('hovering', True)
-                rospy.loginfo("Safe takeoff complete.")
+                self.sensor_manager.status_flags.update({'hovering': True,
+                                                         'landed': False})
+                if self.show_log:
+                    rospy.loginfo("Safe takeoff complete.")
                 return True
 
         rospy.logwarn("Safe takeoff failed: Timeout exceeded.")
@@ -113,7 +124,8 @@ class DroneCommandManager:
         if not self._validate_command(is_hovering_required=True):
             return
 
-        rospy.loginfo("Starting safe landing...")
+        if self.show_log:
+            rospy.loginfo("Starting safe landing...")
         start_time = rospy.get_time()
 
         while rospy.get_time() - start_time < timeout:
@@ -121,24 +133,27 @@ class DroneCommandManager:
             rospy.sleep(0.1)
             if self.sensor_manager.get_sensor_data().get('altitude', 1.0
                                                          ) < heigth:
-                self.sensor_manager.change_status_flags('hovering', False)
-                self.sensor_manager.change_status_flags('landed', True)
-                rospy.loginfo("Safe landing complete.")
+                self.sensor_manager.status_flags.update({'hovering': False,
+                                                         'landed': True})
+                if self.show_log:
+                    rospy.loginfo("Safe landing complete.")
                 return
 
         rospy.logwarn("Safe landing failed: Timeout exceeded.")
 
     def emergency_stop(self, heigth: float = 0.15) -> None:
         """Executes an immediate emergency stop."""
-        rospy.loginfo("Executing emergency stop...")
+        if self.show_log:
+            rospy.loginfo("Executing emergency stop...")
         while self.sensor_manager.get_sensor_data().get('altitude', 1.0
                                                         ) > heigth:
             self.drone_control.land()
             rospy.sleep(0.1)
-        self.sensor_manager.change_status_flags('hovering', False)
-        self.sensor_manager.change_status_flags('landed', True)
-        self.sensor_manager.change_status_flags('emergency', True)
-        rospy.loginfo("Emergency stop completed.")
+        self.sensor_manager.status_flags.update({'hovering': False,
+                                                 'landed': True,
+                                                 'emergency': True})
+        if self.show_log:
+            rospy.loginfo("Emergency stop completed.")
 
     def flip(self, direction: str) -> None:
         """
@@ -153,9 +168,15 @@ class DroneCommandManager:
         if not self._validate_command(is_hovering_required=True):
             return
 
-        rospy.loginfo(f"Executing flip command: {direction}.")
+        if self.show_log:
+            rospy.loginfo(f"Executing flip command: {direction}.")
+        self.sensor_manager.status_flags.update({'hovering': False,
+                                                 'moving': True})
         self.drone_control.flip(direction)
-        rospy.loginfo(f"Flip {direction} completed.")
+        if self.show_log:
+            rospy.loginfo(f"Flip {direction} completed.")
+        self.sensor_manager.status_flags.update({'hovering': True,
+                                                 'moving': False})
 
     def fly_direct(self, linear_x: float = 0.0, linear_y: float = 0.0,
                    linear_z: float = 0.0, angular_z: float = 0.0,
@@ -163,26 +184,32 @@ class DroneCommandManager:
         """
         Commands the drone to move directly with specified velocities.
 
-        :param linear_x: Linear velocity along x-axis.
-        :param linear_y: Linear velocity along y-axis.
-        :param linear_z: Linear velocity along z-axis.
-        :param angular_z: Angular velocity along z-axis.
+        :param linear_x: Linear velocity along x-axis [-1, 1].
+        :param linear_y: Linear velocity along y-axis [-1, 1].
+        :param linear_z: Linear velocity along z-axis [-1, 1].
+        :param angular_z: Angular velocity along z-axis [-1, 1].
         :param duration: Duration of movement (0 for indefinite movement).
         """
         if not self._validate_command(is_hovering_required=True):
             return
 
-        rospy.loginfo("Executing direct flight command...")
+        if self.show_log:
+            rospy.loginfo("Executing direct flight command...")
+        self.sensor_manager.status_flags.update({'hovering': False,
+                                                 'moving': True})
         if duration > 0:
             start_time = rospy.get_time()
-            while duration == 0 or rospy.get_time() - start_time < duration:
+            while rospy.get_time() - start_time < duration:
                 self.drone_control.move(linear_x, linear_y, linear_z,
                                         angular_z)
                 rospy.sleep(0.1)
             self.drone_control.move(0.0, 0.0, 0.0, 0.0)
         else:
             self.drone_control.move(linear_x, linear_y, linear_z, angular_z)
-        rospy.loginfo("Direct flight command completed.")
+        self.sensor_manager.status_flags.update({'hovering': True,
+                                                 'moving': False})
+        if self.show_log:
+            rospy.loginfo("Direct flight command completed.")
 
     def move_relative(self, delta_x: float = 0.0, delta_y: float = 0.0,
                       delta_z: float = 0.0, delta_yaw: float = 0.0,
@@ -198,10 +225,12 @@ class DroneCommandManager:
         :param power: Power of the movement [0 to 1].
         """
         if self.sensor_manager.is_emergency():
-            rospy.loginfo("Cannot move: Emergency mode!")
+            if self.show_log:
+                rospy.loginfo("Cannot move: Emergency mode!")
             return
         if not self.sensor_manager.is_hovering():
-            rospy.loginfo("Cannot move: Drone not hovering.")
+            if self.show_log:
+                rospy.loginfo("Cannot move: Drone not hovering.")
             return
 
         target_position = {
@@ -215,7 +244,10 @@ class DroneCommandManager:
                 'orientation'][2] + delta_yaw
         }
 
-        rospy.loginfo("Moving the drone to a relative position.")
+        if self.show_log:
+            rospy.loginfo("Moving the drone to a relative position.")
+        self.sensor_manager.status_flags.update({'hovering': False,
+                                                 'moving': True})
         while True:
             current_position = {
                 'x': self.sensor_manager.get_sensor_data()['position'][0],
@@ -238,7 +270,10 @@ class DroneCommandManager:
             rospy.sleep(rate)
 
         self.drone_control.move(0.0, 0.0, 0.0, 0.0)
-        rospy.loginfo("The drone has stopped moving!")
+        if self.show_log:
+            rospy.loginfo("The drone has stopped moving!")
+        self.sensor_manager.status_flags.update({'hovering': True,
+                                                 'moving': False})
 
     # Camera Control Methods
 
@@ -249,7 +284,9 @@ class DroneCommandManager:
         :param tilt: Tilt angle (degrees).
         :param pan: Pan angle (degrees).
         """
-        rospy.loginfo(f"Adjusting camera orientation: Tilt={tilt}, Pan={pan}.")
+        if self.show_log:
+            rospy.loginfo(
+                f"Adjusting camera orientation: Tilt={tilt}, Pan={pan}.")
         self.drone_camera.control_camera_orientation(tilt, pan)
 
     def adjust_camera_exposure(self, exposure: float) -> None:
@@ -258,12 +295,14 @@ class DroneCommandManager:
 
         :param exposure: Exposure value (-3 to 3).
         """
-        rospy.loginfo(f"Adjusting camera exposure: {exposure}.")
+        if self.show_log:
+            rospy.loginfo(f"Adjusting camera exposure: {exposure}.")
         self.drone_camera.adjust_exposure(exposure)
 
     def release_camera(self) -> None:
         """Releases camera resources."""
-        rospy.loginfo("Releasing camera resources.")
+        if self.show_log:
+            rospy.loginfo("Releasing camera resources.")
         self.drone_camera.release()
 
     def save_snapshot(self, frame: np.ndarray, main_dir: str) -> None:
