@@ -140,7 +140,7 @@ class DroneControl(RosCommunication):
         self.vel_cmd.linear.y = linear_y
         self.vel_cmd.linear.z = linear_z
         self.vel_cmd.angular.z = angular_z
-        self._publish_command('cmd_vel', self.vel_cmd)
+        # self._publish_command('cmd_vel', self.vel_cmd)
 
     def flattrim(self) -> None:
         """Commands the drone to perform a flat trim calibration."""

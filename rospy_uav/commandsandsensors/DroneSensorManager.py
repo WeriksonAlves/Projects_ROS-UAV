@@ -177,6 +177,14 @@ class DroneSensorManager:
         """
         return self.status_flags.get('landed', None)
 
+    def is_moving(self) -> bool:
+        """
+        Check if the drone is currently moving.
+
+        :return: True if moving, None otherwise.
+        """
+        return self.status_flags.get('moving', None)
+
     # Camera Management
 
     def is_camera_operational(self) -> bool:
