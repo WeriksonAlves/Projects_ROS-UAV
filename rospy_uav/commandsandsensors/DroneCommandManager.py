@@ -234,13 +234,13 @@ class DroneCommandManager:
             return
 
         target_position = {
-            'x': self.sensor_manager.get_sensor_data()[
+            'x': self.sensor_manager.get_sensor_data()['odometry'][
                 'position'][0] + delta_x,
-            'y': self.sensor_manager.get_sensor_data()[
+            'y': self.sensor_manager.get_sensor_data()['odometry'][
                 'position'][1] + delta_y,
-            'z': self.sensor_manager.get_sensor_data()[
+            'z': self.sensor_manager.get_sensor_data()['odometry'][
                 'position'][2] + delta_z,
-            'yaw': self.sensor_manager.get_sensor_data()[
+            'yaw': self.sensor_manager.get_sensor_data()['odometry'][
                 'orientation'][2] + delta_yaw
         }
 

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from .commandsandsensors.DroneCommandManager import DroneCommandManager
 from .commandsandsensors.DroneSensorManager import DroneSensorManager
 from .commandsandsensors.DroneSettingManager import DroneSettingManager
@@ -193,7 +191,7 @@ class Bebop2:
         )
 
     def move_relative(self, delta_x: float, delta_y: float, delta_z: float,
-                      delta_yaw: float, power: int) -> None:
+                      delta_yaw: float, power: float = 0.25) -> None:
         """
         Command the drone to move to a relative position.
 
