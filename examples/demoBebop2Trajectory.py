@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 from typing import List, Tuple
-
 import matplotlib.pyplot as plt
 import numpy as np
 from rospy_uav.rospy_uav.Bebop2 import Bebop2
+from rospy_uav.rospy_uav.utils.DrawGraphics import set_axes_equal
 
 
 class DroneTrajectoryManager:
@@ -12,16 +12,16 @@ class DroneTrajectoryManager:
     Manages the trajectory execution and visualization for a Bebop2 drone.
     """
 
-    def __init__(self, drone_type: str = 'bebop2',
-                 ip_address: str = '192.168.0.202', trajectory: str = None
+    def __init__(self, drone_type: str = "bebop2",
+                 ip_address: str = "192.168.0.202", trajectory: str = None
                  ) -> None:
         """
-        Initializes the drone trajectory manager.
+        Initializes the DroneTrajectoryManager instance.
 
         :param drone_type: Type of the drone (e.g., 'bebop2', 'gazebo').
         :param ip_address: IP address of the drone.
-        :param trajectory: Predefined trajectory to execute ('cube' or
-                            'ellipse').
+        :param trajectory: Predefined trajectory to execute ('cube', 'ellipse',
+                            or 'lemniscate').
         """
         self.drone = Bebop2(drone_type=drone_type, ip_address=ip_address)
         self.trajectory = trajectory
@@ -30,33 +30,34 @@ class DroneTrajectoryManager:
         """
         Attempts to connect to the drone.
 
-        :return: True if connection is successful, otherwise False.
+        :return: True if connection is successful, False otherwise.
         """
         print("Connecting to Bebop2 drone...")
-        if self.drone.check_connection():
+        if self.drone.drone_type == "bebop2" and not self.connect_to_drone():
             print("Connection successful.")
             return True
-        print("Connection failed. Please check the connection.")
+        print("Failed to connect. Please check the connection.")
         return False
 
     def display_battery_status(self) -> None:
         """
-        Displays the current battery level of the drone.
+        Prints the drone's current battery level.
         """
         battery_level = self.drone.sensor_manager.sensor_data.get(
             "battery_level", "Unknown"
         )
         print(f"Battery Level: {battery_level}%")
 
-    def start_video_stream(self, duration: int = 2) -> None:
+    def start_video_stream(self, stabilization_time: int = 2) -> None:
         """
         Starts the drone's video stream.
 
-        :param duration: Time to allow the video stream to stabilize.
+        :param stabilization_time: Time (in seconds) to stabilize the video
+                                    stream.
         """
         print("Initializing video stream...")
         self.drone.camera_on()
-        self.drone.smart_sleep(duration)
+        self.drone.smart_sleep(stabilization_time)
 
     def plot_trajectory(self, trajectory_data: List[Tuple[float, float, float]]
                         ) -> None:
@@ -67,20 +68,47 @@ class DroneTrajectoryManager:
         """
         x, y, z = zip(*trajectory_data)
         fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.plot(x, y, z)
-        ax.grid()
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
+        ax = fig.add_subplot(111, projection="3d")
+        ax.scatter(x, y, z, label="Trajectory")
+        ax.set_title("Drone Trajectory")
+        ax.set_xlabel("X (meters)")
+        ax.set_ylabel("Y (meters)")
+        ax.set_zlabel("Z (meters)")
+        ax.legend()
+        ax = set_axes_equal(ax)
+        plt.grid()
         plt.show()
 
-    def execute_trajectory_cube(self) -> None:
+    def execute_trajectory(
+            self,
+            trajectory_points: List[Tuple[float, float, float, float, float]],
+            sleep_time: float = 1.0) -> List[Tuple[float, float, float]]:
         """
-        Executes a predefined cube-shaped trajectory.
+        Executes a given trajectory and logs the drone's positions.
+
+        :param trajectory_points: List of (x, y, z, yaw) points to follow.
+        :param sleep_time: Time (in seconds) to pause between movements.
+        :return: List of recorded (x, y, z) positions during the trajectory.
         """
-        print("Executing cube trajectory...")
-        cube_vertices = [
+        positions = []
+        for x, y, z, yaw, power_level in trajectory_points:
+            self.drone.move_relative(x, y, z, yaw, power_level)
+            self.drone.smart_sleep(sleep_time)
+            current_position = self.drone.sensor_manager.get_sensor_data()[
+                "odometry"]["position"]
+            positions.append(tuple(current_position))
+            print(f"Current Position: x={current_position[0]:.3f}, "
+                  f"y={current_position[1]:.3f}, z={current_position[2]:.3f}")
+        return positions
+
+    def generate_cube_trajectory(self
+                                 ) -> List[Tuple[float, float, float, float]]:
+        """
+        Generates a predefined cube-shaped trajectory.
+
+        :return: List of (x, y, z, yaw) points for the trajectory.
+        """
+        return [
             (0, 0, 1, 0),  # Vertex 1
             (1, 0, 1, 0),  # Vertex 2
             (1, 1, 1, 0),  # Vertex 3
@@ -94,102 +122,75 @@ class DroneTrajectoryManager:
             (0, 0, 1, 0),  # Return to Vertex 1
         ]
 
-        for x, y, z, yaw in cube_vertices:
-            self.drone.move_relative(x, y, z, yaw)
-            self.drone.smart_sleep(1)
-            position = self.drone.sensor_manager.get_sensor_data()['odometry'][
-                'position']
-            print(
-                f"Current pose: x={position[0]:.3f}, y={position[1]:.3f}, "
-                f"z={position[2]:.3f}"
-                )
-
-    def execute_trajectory_ellipse(self) -> None:
+    def generate_ellipse_trajectory(
+            self, a: float = 2, b: float = 1, z: float = 3, points: int = 50
+            ) -> List[Tuple[float, float, float, float]]:
         """
-        Executes a predefined elliptical trajectory.
+        Generates an elliptical trajectory.
+
+        :param a: Semi-major axis of the ellipse.
+        :param b: Semi-minor axis of the ellipse.
+        :param z: Fixed height for the ellipse.
+        :param points: Number of points to define the ellipse.
+        :return: List of (x, y, z, yaw) points for the trajectory.
         """
-        print("Executing elliptical trajectory...")
-        a, b, z = 2, 1, 3
-        points = 50
-        interval = 0.1
+        return [(a * np.cos(2 * np.pi * i / points), b * np.sin(
+            2 * np.pi * i / points), z, 0, 0.25) for i in range(points)]
 
-        trajectory_data = []
-        for i in range(points):
-            x = a * np.cos(1 * 2 * np.pi * i / points)
-            y = b * np.sin(1 * 2 * np.pi * i / points)
-            self.drone.move_relative(x, y, z, 0, 0.35)
-            self.drone.smart_sleep(interval)
-            position = self.drone.sensor_manager.get_sensor_data()['position']
-            trajectory_data.append((position[0], position[1], position[2]))
-
-        self.plot_trajectory(trajectory_data)
-
-    def execute_trajectory_lemniscate(self) -> None:
+    def generate_lemniscate_trajectory(
+            self, a: float = 2, b: float = 1, z: float = 3, points: int = 50
+            ) -> List[Tuple[float, float, float, float]]:
         """
-        Executes a predefined lemniscate trajectory.
+        Generates a lemniscate (figure-eight) trajectory.
+
+        :param a: Horizontal scaling factor.
+        :param b: Vertical scaling factor.
+        :param z: Fixed height for the lemniscate.
+        :param points: Number of points to define the lemniscate.
+        :return: List of (x, y, z, yaw) points for the trajectory.
         """
-        print("Executing lemniscate trajectory...")
-        a, b, z = 2, 1, 3
-        points = 50
-        interval = 0.1
-
-        trajectory_data = []
-        for i in range(points):
-            x = a * np.cos(2 * np.pi * i / points) / (
-                1 + np.sin(2 * np.pi * i / points) ** 2
-            )
-            y = b * np.sin(2 * 2 * np.pi * i / points) / (
-                1 + np.cos(2 * np.pi * i / points) ** 2
-            )
-            self.drone.move_relative(x, y, z, 0, 0.35)
-            self.drone.smart_sleep(interval)
-            position = self.drone.sensor_manager.get_sensor_data()['odometry'][
-                'position']
-            trajectory_data.append((position[0], position[1], position[2]))
-
-        self.plot_trajectory(trajectory_data)
+        return [
+            (a * np.sin(t), b * np.sin(2*t), z, 0, 0.25)
+            for t in np.linspace(0, 2 * np.pi, points)
+        ]
 
     def run_experiment(self) -> None:
         """
-        Executes the complete trajectory experiment.
-
-        :return: None
+        Executes the complete trajectory experiment based on the specified
+        trajectory type.
         """
-        if self.drone.drone_type == 'bebop':
-            if not self.connect_to_drone():
-                return
+        if self.drone.drone_type == "bebop2" and not self.connect_to_drone():
+            return
 
         self.display_battery_status()
         self.start_video_stream()
-        # Segurity Commands
-        self.drone.land()
-        self.drone.smart_sleep(2)
 
         print("Taking off...")
         self.drone.takeoff()
         self.drone.smart_sleep(2)
 
-        if self.trajectory == 'cube':
-            self.execute_trajectory_cube()
-        elif self.trajectory == 'ellipse':
-            self.execute_trajectory_ellipse()
-        elif self.trajectory == 'lemniscate':
-            self.execute_trajectory_lemniscate()
-        else:
-            print(
-                "Invalid trajectory specified. "
-                "Please choose 'cube' or 'ellipse'."
-            )
+        trajectory_functions = {
+            "cube": self.generate_cube_trajectory,
+            "ellipse": self.generate_ellipse_trajectory,
+            "lemniscate": self.generate_lemniscate_trajectory,
+        }
 
-        self.drone.smart_sleep(2)
+        if self.trajectory in trajectory_functions:
+            trajectory_points = trajectory_functions[self.trajectory]()
+            positions = self.execute_trajectory(trajectory_points)
+            self.plot_trajectory(positions)
+        else:
+            print("Invalid trajectory specified. Please choose 'cube', "
+                  "'ellipse', or 'lemniscate'.")
+
         self.drone.land()
         print("Experiment complete.")
         self.display_battery_status()
 
 
 if __name__ == "__main__":
-    # Select the trajectory to execute: 'cube', 'ellipse', or 'lemniscate'.
-    drone_manager = DroneTrajectoryManager(
-        drone_type='gazebo', trajectory='lemniscate'
-    )
-    drone_manager.run_experiment()
+    # Specify the trajectory: 'cube', 'ellipse', or 'lemniscate'.
+    manager = DroneTrajectoryManager(
+        drone_type="gazebo", trajectory="lemniscate"
+        )
+    manager.run_experiment()

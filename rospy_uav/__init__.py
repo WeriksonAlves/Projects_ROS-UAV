@@ -11,6 +11,7 @@ from .ros.DroneMedia import DroneMedia
 from .ros.DroneSensors import DroneSensors
 from .ros.DroneStates import FlightStateManager
 
+from .utils.DrawGraphics import DrawGraphics
 from .utils.MyFunctions import MyFunctions
 
 from .Bebop2 import Bebop2
