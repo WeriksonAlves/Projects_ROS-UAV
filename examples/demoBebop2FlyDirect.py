@@ -1,58 +1,27 @@
 #!/usr/bin/env python3
+
 from rospy_uav.rospy_uav.Bebop2 import Bebop2
 
 
 class demoBebop2FlyDirect:
     """
-    Manages and executes Bebop2 drone operations, including connection,
-    sensor updates, and flight commands.
+    A class to manage and execute a predefined flight pattern for a Bebop2
+    drone.
     """
 
-    def __init__(self, drone_type: str = 'bebop2',
-                 ip_address: str = '192.168.0.202') -> None:
+    def __init__(self, drone: Bebop2) -> None:
         """
-        Initializes the drone manager instance.
+        Initializes the DroneActionManager with a Bebop2 instance.
 
-        :param drone_type: Type of drone being controlled.
-        :param ip_address: IP address of the drone.
+        :param drone: An instance of the Bebop2 drone.
         """
-        self.drone = Bebop2(drone_type=drone_type, ip_address=ip_address)
+        self.drone = drone
 
-    def connect_to_drone(self) -> bool:
+    def execute_flight_pattern(self) -> None:
         """
-        Attempts to connect to the drone.
-
-        :return: True if connection is successful, otherwise False.
+        Executes a predefined flight pattern suitable for indoor operation.
         """
-        print("Connecting to Bebop2 drone...")
-        if self.drone.check_connection():
-            print("Connection successful.")
-            return True
-        print("Connection failed. Please check the connection.")
-        return False
-
-    def display_battery_status(self) -> None:
-        """
-        Displays the current battery level of the drone.
-        """
-        battery_level = self.drone.sensor_manager.sensor_data.get(
-            "battery_level", "Unknown"
-        )
-        print(f"Battery Level: {battery_level}%")
-
-    def start_video_stream(self, duration=2) -> None:
-        """
-        Starts the drone's video stream.
-        """
-        print("Initializing video stream...")
-        self.drone.camera_on()
-        self.drone.smart_sleep(duration)
-
-    def execute_flight_pattern(self, duration=2) -> None:
-        """
-        Executes a predefined flight pattern for indoor operation.
-        """
-        print("Executing indoor flight pattern...")
+        print("Executing flight pattern...")
         flight_commands = [
             (0, 0, 100, 0, 5),  # Hover up
             (75, 0, 0, 0, 5),   # Move forward
@@ -71,33 +40,54 @@ class demoBebop2FlyDirect:
             )
             self.drone.smart_sleep(duration)
 
-    def land(self) -> None:
-        """
-        Lands the drone safely.
-        """
-        print("Landing the drone...")
-        self.drone.land()
 
-    def run_experiment(self) -> None:
-        """
-        Runs the full flight experiment sequence.
-        """
-        if self.drone.drone_type == 'bebop2':
-            if not self.connect_to_drone():
-                return
+def main():
+    """
+    Main function to control the drone operations.
+    """
+    drone_type = 'gazebo'  # Change to 'bebop2' for real drone usage
+    ip_address = '192.168.0.202'  # Use appropriate IP for the real drone
 
-        self.display_battery_status()
-        self.start_video_stream()
-        self.drone.takeoff()
-        self.drone.smart_sleep(5)
+    # Initialize the drone
+    bebop = Bebop2(drone_type=drone_type, ip_address=ip_address)
 
-        self.execute_flight_pattern()
-        self.land()
+    # Create the drone action manager
+    action_manager = demoBebop2FlyDirect(bebop)
 
-        print("Experiment complete.")
-        self.display_battery_status()
+    # Connect to the drone
+    if drone_type == 'bebop2':
+        print("Connecting to the drone...")
+        if not bebop.check_connection():
+            print("Connection failed. Please check the connection.")
+            return
+        print("Connection successful.")
+
+    # Display battery status
+    battery_level = bebop.sensor_manager.sensor_data.get(
+        "battery_level", "Unknown"
+    )
+    print(f"Battery Level: {battery_level}%")
+
+    # Start video stream
+    print("Initializing video stream...")
+    bebop.camera_on()
+    bebop.smart_sleep(1)
+
+    # Execute flight pattern
+    print("Executing flight pattern...")
+    bebop.takeoff()
+    bebop.smart_sleep(2)
+
+    action_manager.execute_flight_pattern()
+
+    bebop.land()
+
+    # Display battery status
+    battery_level = bebop.sensor_manager.sensor_data.get(
+        "battery_level", "Unknown"
+    )
+    print(f"Battery Level: {battery_level}%")
 
 
 if __name__ == "__main__":
-    drone_manager = demoBebop2FlyDirect(drone_type='gazebo')
-    drone_manager.run_experiment()
+    main()
