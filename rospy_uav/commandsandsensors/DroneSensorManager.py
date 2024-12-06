@@ -143,6 +143,12 @@ class DroneSensorManager:
 
     # Status Flag Management
 
+    def reset(self) -> None:
+        """
+        Reset all status flags to their default values.
+        """
+        self.status_flags = self._initialize_status_flags()
+
     def update_status_flag(self, name: str, value: bool) -> None:
         """
         Update a specific status flag for the drone.

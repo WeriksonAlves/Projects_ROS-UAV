@@ -97,27 +97,54 @@ class DroneTrajectoryManager:
         for x, y, z, yaw in cube_vertices:
             self.drone.move_relative(x, y, z, yaw)
             self.drone.smart_sleep(1)
-            position = self.drone.sensor_manager.get_sensor_data()['position']
+            position = self.drone.sensor_manager.get_sensor_data()['odometry'][
+                'position']
             print(
-                f"Current pose: x={position[0]}, "
-                f"y={position[1]}, z={position[2]}")
+                f"Current pose: x={position[0]:.3f}, y={position[1]:.3f}, "
+                f"z={position[2]:.3f}"
+                )
 
     def execute_trajectory_ellipse(self) -> None:
         """
         Executes a predefined elliptical trajectory.
         """
         print("Executing elliptical trajectory...")
-        a, b, z = 2.5, 1.5, 2
-        points = 100
+        a, b, z = 2, 1, 3
+        points = 50
         interval = 0.1
 
         trajectory_data = []
         for i in range(points):
-            x = a * np.cos(2 * np.pi * i / points)
-            y = b * np.sin(2 * np.pi * i / points)
-            self.drone.move_relative(x, y, z, 0)
+            x = a * np.cos(1 * 2 * np.pi * i / points)
+            y = b * np.sin(1 * 2 * np.pi * i / points)
+            self.drone.move_relative(x, y, z, 0, 0.35)
             self.drone.smart_sleep(interval)
             position = self.drone.sensor_manager.get_sensor_data()['position']
+            trajectory_data.append((position[0], position[1], position[2]))
+
+        self.plot_trajectory(trajectory_data)
+
+    def execute_trajectory_lemniscate(self) -> None:
+        """
+        Executes a predefined lemniscate trajectory.
+        """
+        print("Executing lemniscate trajectory...")
+        a, b, z = 2, 1, 3
+        points = 50
+        interval = 0.1
+
+        trajectory_data = []
+        for i in range(points):
+            x = a * np.cos(2 * np.pi * i / points) / (
+                1 + np.sin(2 * np.pi * i / points) ** 2
+            )
+            y = b * np.sin(2 * 2 * np.pi * i / points) / (
+                1 + np.cos(2 * np.pi * i / points) ** 2
+            )
+            self.drone.move_relative(x, y, z, 0, 0.35)
+            self.drone.smart_sleep(interval)
+            position = self.drone.sensor_manager.get_sensor_data()['odometry'][
+                'position']
             trajectory_data.append((position[0], position[1], position[2]))
 
         self.plot_trajectory(trajectory_data)
@@ -134,6 +161,11 @@ class DroneTrajectoryManager:
 
         self.display_battery_status()
         self.start_video_stream()
+        # Segurity Commands
+        self.drone.land()
+        self.drone.smart_sleep(2)
+
+        print("Taking off...")
         self.drone.takeoff()
         self.drone.smart_sleep(2)
 
@@ -141,6 +173,8 @@ class DroneTrajectoryManager:
             self.execute_trajectory_cube()
         elif self.trajectory == 'ellipse':
             self.execute_trajectory_ellipse()
+        elif self.trajectory == 'lemniscate':
+            self.execute_trajectory_lemniscate()
         else:
             print(
                 "Invalid trajectory specified. "
@@ -154,8 +188,8 @@ class DroneTrajectoryManager:
 
 
 if __name__ == "__main__":
-    # Replace 'cube' with 'ellipse' to run a different trajectory
+    # Select the trajectory to execute: 'cube', 'ellipse', or 'lemniscate'.
     drone_manager = DroneTrajectoryManager(
-        drone_type='gazebo', trajectory='cube'
+        drone_type='gazebo', trajectory='lemniscate'
     )
     drone_manager.run_experiment()

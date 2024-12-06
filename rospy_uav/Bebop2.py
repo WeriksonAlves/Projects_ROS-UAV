@@ -96,6 +96,10 @@ class Bebop2:
 
     # ---- Drone Control Methods ----
 
+    def reset(self) -> None:
+        """Reset the drone to its initial state."""
+        self._execute_command(self.command_manager.reset, "reset")
+
     def takeoff(self) -> None:
         """Command the drone to take off."""
         self._execute_command(self.command_manager.takeoff, "takeoff")

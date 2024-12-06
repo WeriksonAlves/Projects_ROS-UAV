@@ -66,6 +66,17 @@ class DroneCommandManager:
         rospy.logwarn("Command ignored")
         return False
 
+    def reset(self) -> None:
+        """
+        Resets the drone to its initial state.
+        """
+        if self.show_log:
+            rospy.loginfo("Resetting the drone...")
+        self.drone_control.reset()
+        self.sensor_manager.reset()
+        if self.show_log:
+            rospy.loginfo("Drone reset completed.")
+
     def takeoff(self) -> None:
         """Commands the drone to take off."""
         if not self._validate_command(is_landed_required=True):
@@ -213,7 +224,7 @@ class DroneCommandManager:
 
     def move_relative(self, delta_x: float = 0.0, delta_y: float = 0.0,
                       delta_z: float = 0.0, delta_yaw: float = 0.0,
-                      power: int = 0.25, theshold: float = 0.1,
+                      power: int = 0.25, theshold: float = 0.05,
                       rate: float = 1 / 30) -> None:
         """
         Moves the drone in the specified relative direction.
@@ -234,38 +245,36 @@ class DroneCommandManager:
             return
 
         target_position = {
-            'x': self.sensor_manager.get_sensor_data()['odometry'][
-                'position'][0] + delta_x,
-            'y': self.sensor_manager.get_sensor_data()['odometry'][
-                'position'][1] + delta_y,
-            'z': self.sensor_manager.get_sensor_data()['odometry'][
-                'position'][2] + delta_z,
-            'yaw': self.sensor_manager.get_sensor_data()['odometry'][
-                'orientation'][2] + delta_yaw
+            'x': delta_x,
+            'y': delta_y,
+            'z': delta_z,
+            'yaw': delta_yaw
         }
 
         if self.show_log:
             rospy.loginfo("Moving the drone to a relative position.")
         self.sensor_manager.status_flags.update({'hovering': False,
                                                  'moving': True})
-        while True:
+        error = np.inf
+        while error > theshold:
             current_position = {
-                'x': self.sensor_manager.get_sensor_data()['position'][0],
-                'y': self.sensor_manager.get_sensor_data()['position'][1],
-                'z': self.sensor_manager.get_sensor_data()['position'][2],
-                'yaw': self.sensor_manager.get_sensor_data()['orientation'][2]
+                'x': self.sensor_manager.get_sensor_data()['odometry'][
+                    'position'][0],
+                'y': self.sensor_manager.get_sensor_data()['odometry'][
+                    'position'][1],
+                'z': self.sensor_manager.get_sensor_data()['odometry'][
+                    'position'][2],
+                'yaw': self.sensor_manager.get_sensor_data()['odometry'][
+                    'orientation'][2]
             }
 
             error_vector = {k: np.tanh(target_position[k] - current_position[k]
                                        ) * (power) for k in current_position}
             error = np.linalg.norm(list(error_vector.values()))
 
-            if error < theshold:
-                break
-
             self.drone_control.move(error_vector['x'],
-                                    -error_vector['y'],
-                                    -error_vector['z'],
+                                    error_vector['y'],
+                                    error_vector['z'],
                                     error_vector['yaw'])
             rospy.sleep(rate)
 
