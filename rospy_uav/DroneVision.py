@@ -28,6 +28,8 @@ class SingletonDirectoryManager:
 
     def _prepare_directory(self) -> None:
         """Create or clean the directory based on the configuration."""
+        print(f"Preparing image directory: {self.path}")
+        print(f"Size of the directory: {len(list(self.path.glob('*.png')))}")
         if self.cleanup_old_images and self.path.exists():
             for image_file in self.path.glob("*.png"):
                 image_file.unlink()
@@ -57,7 +59,7 @@ class DroneVision:
 
         # Set up image directory using SingletonDirectoryManager
         main_path = Path(__file__).resolve().parent
-        self.image_dir = main_path / "images" / "internal"
+        self.image_dir = main_path / "images"
         SingletonDirectoryManager(self.image_dir, cleanup_old_images)
 
         # Initialize video buffer and threading
