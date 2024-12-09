@@ -43,7 +43,7 @@ Comprehensive documentation is available, covering installation, API references,
 ---
 
 ## **Major Updates**
-- **12/06/2024**: Initial release of the foundational library.
+- **12/10/2024**: Initial release of the foundational library.
 
 ---
 
