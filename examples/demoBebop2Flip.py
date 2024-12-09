@@ -1,108 +1,77 @@
 #!/usr/bin/env python3
 
-from typing import List, Tuple
-import matplotlib.pyplot as plt
-from rospy_uav.rospy_uav.Bebop2 import Bebop2
-from rospy_uav.rospy_uav.utils.DrawGraphics import set_axes_equal
+from rospy_uav.rospy_uav import Bebop2
 
 
-class demoBebop2Flip:
+class DroneFlipManager:
     """
-    Exemplifies the Bebop2 drone's flip maneuver capabilities.
+    Manages the execution of flip maneuvers for a Bebop2 drone.
     """
 
-    def __init__(self, drone_type: str = 'bebop2',
-                 ip_address: str = '192.168.0.202') -> None:
+    def __init__(self, drone: Bebop2) -> None:
         """
-        Initializes the drone manager instance.
+        Initializes the DroneFlipManager with a Bebop2 instance.
 
-        :param drone_type: Type of drone being controlled.
-        :param ip_address: IP address of the drone.
+        :param drone: Bebop2 instance.
         """
-        self.drone = Bebop2(drone_type=drone_type, ip_address=ip_address)
+        self.drone = drone
 
-    def connect_to_drone(self) -> bool:
+    def execute_flip_maneuvers(self) -> None:
         """
-        Attempts to connect to the drone.
-
-        :return: True if connection is successful, otherwise False.
-        """
-        print("Connecting to Bebop2 drone...")
-        if self.drone.check_connection():
-            print("Connection successful.")
-            return True
-        print("Connection failed. Please check the connection.")
-        return False
-
-    def display_battery_status(self) -> None:
-        """
-        Displays the current battery level of the drone.
-        """
-        battery_level = self.drone.sensor_manager.sensor_data.get(
-            "battery_level", "Unknown"
-        )
-        print(f"Battery Level: {battery_level}%")
-
-    def plot_trajectory(self, trajectory_data: List[Tuple[float, float, float]]
-                        ) -> None:
-        """
-        Plots the 3D trajectory of the drone.
-
-        :param trajectory_data: List of (x, y, z) coordinates.
-        """
-        x, y, z = zip(*trajectory_data)
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection="3d")
-        ax.scatter(x, y, z, label="Trajectory")
-        ax.set_title("Drone Trajectory")
-        ax.set_xlabel("X (meters)")
-        ax.set_ylabel("Y (meters)")
-        ax.set_zlabel("Z (meters)")
-        ax.legend()
-        ax = set_axes_equal(ax)
-        plt.grid()
-        plt.show()
-
-    def start_video_stream(self, duration=2) -> None:
-        """
-        Starts the drone's video stream.
-        """
-        print("Initializing video stream...")
-        self.drone.camera_on()
-        self.drone.smart_sleep(duration)
-
-    def command_list(self) -> None:
-        """
-        Defines the list of flip maneuvers to execute
+        Executes a series of flip maneuvers.
         """
         flip_list = ['right', 'left', 'forward', 'backward']
         for flip in flip_list:
             self.drone.flip(flip)
             self.drone.smart_sleep(2)
 
-    def run_experiment(self) -> None:
-        """
-        Executes the flip maneuver experiment.
-        """
-        if self.drone.drone_type == "bebop2" and not self.connect_to_drone():
+
+def main() -> None:
+    """
+    Main function to control the drone operations.
+    """
+    drone_type = 'gazebo'  # Change to 'bebop2' for real drone usage
+    ip_address = '192.168.0.202'  # Use appropriate IP for the real drone
+
+    # Initialize the drone
+    bebop = Bebop2(drone_type=drone_type, ip_address=ip_address)
+
+    # Create the drone flip manager
+    flip_manager = DroneFlipManager(bebop)
+
+    # Connect to the drone
+    if drone_type == 'bebop2':
+        print("Connecting to the drone...")
+        if not bebop.check_connection():
+            print("Connection failed. Please check the connection.")
             return
+        print("Connection successful.")
 
-        self.display_battery_status()
-        self.start_video_stream()
+    # Display battery status
+    battery_level = bebop.sensor_manager.sensor_data.get("battery_level",
+                                                         "Unknown")
+    print(f"Battery Level: {battery_level}%")
 
-        print("Taking off...")
-        self.drone.takeoff()
-        self.drone.smart_sleep(2)
+    # Start video stream
+    print("Initializing video stream...")
+    bebop.camera_on()
+    bebop.smart_sleep(1)
 
-        self.display_battery_status()
-        self.start_video_stream()
-        self.command_list()
+    # Execute flip maneuvers
+    print("Starting takeoff...")
+    bebop.takeoff()
+    bebop.smart_sleep(2)
 
-        self.drone.land()
-        print("Experiment complete.")
-        self.display_battery_status()
+    flip_manager.execute_flip_maneuvers()
+
+    print("Landing...")
+    bebop.land()
+
+    # Display final battery status
+    battery_level = bebop.sensor_manager.sensor_data.get("battery_level",
+                                                         "Unknown")
+    print(f"Final Battery Level: {battery_level}%")
 
 
 if __name__ == "__main__":
-    drone_manager = demoBebop2Flip(drone_type='gazebo')
-    drone_manager.run_experiment()
+    main()
