@@ -21,13 +21,15 @@ Follow these steps to set up `py_uav`:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-repo/py_uav.git
-   cd py_uav
+   git clone https://github.com/WeriksonAlves/rospy_uav.git
+   cd rospy_uav
    ```
 
-2. Install the required dependencies:
+2. Create a virtual environment and install the necessary dependencies:
    ```bash
-   pip install -r requirements.txt
+   python3.9 -m venv venv
+   source venv/bin/activate
+   pip3.9 install -r requirements.txt
    ```
 
 3. Ensure your ROS (Robot Operating System) environment is configured and the necessary packages are installed.
@@ -38,12 +40,13 @@ Note: This project builds on the capabilities of [bebopautonomous](https://githu
 
 ## **Documentation**
 Comprehensive documentation is available, covering installation, API references, and tutorials:
-- **Documentation**: [Visit pyparrot's documentation](https://pyparrot.readthedocs.io) (many principles are shared).
+- **Main Documentation**: [Visit pyparrot's documentation](https://pyparrot.readthedocs.io) (many principles are shared).
 
 ---
 
 ## **Major Updates**
-- **12/10/2024**: Initial release of the foundational library.
+- **12/09/2024**: Initial release of the foundational library.
+- **12/10/2024**: Added the requirements file for installing the necessary libraries.
 
 ---
 
