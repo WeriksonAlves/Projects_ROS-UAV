@@ -47,6 +47,7 @@ Comprehensive documentation is available, covering installation, API references,
 ## **Major Updates**
 - **12/09/2024**: Initial release of the foundational library.
 - **12/10/2024**: Added the requirements file for installing the necessary libraries.
+- **12/11/2024**: Add documentation for ROS communication, drone vision, flight state management, and media operations.
 
 ---
 
