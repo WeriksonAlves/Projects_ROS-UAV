@@ -16,31 +16,49 @@
 
 ## **Getting Started**
 
-### **Installation**
-Follow these steps to set up `py_uav`:
+### **Installations**
 
-1. Clone the repository:
+#### Step 1 - Install `bebopautonomous`
+This project leverages the features of [bebopautonomous](https://github.com/AutonomyLab/bebop_autonomy). Follow the installation guide available in its [documentation](https://bebop-autonomy.readthedocs.io/en/latest/installation.html).
+
+#### Step 2 - Install `Parrot Bebop2 Gazebo and ROS Noetic`
+The project also incorporates functionality from [iROS_drone](https://github.com/arnaldojr/iROS_drone/tree/noetic). Follow the setup instructions provided in the repository.
+
+#### Step 3 - Set Up `rospy_uav`
+
+1. **Navigate to the workspace folder and initialize the environment:**
    ```bash
-   git clone https://github.com/WeriksonAlves/rospy_uav.git
-   cd rospy_uav
+   cd bebop_ws/
+   . devel/setup.bash
+   cd src/
    ```
 
-2. Create a virtual environment and install the necessary dependencies:
+2. **Clone the `rospy_uav` repository into a new folder:**
+   ```bash
+   mkdir env_rospy_uav
+   cd env_rospy_uav/
+   git clone https://github.com/WeriksonAlves/rospy_uav.git
+   ```
+
+3. **Create a virtual environment and install dependencies:**
    ```bash
    python3.9 -m venv venv
    source venv/bin/activate
-   pip3.9 install -r requirements.txt
+   pip install -r rospy_uav/requirements.txt
    ```
 
-3. Ensure your ROS (Robot Operating System) environment is configured and the necessary packages are installed.
+4. **Write your custom code:**
+   Create a new Python script (`main.py`) in the `env_rospy_uav` folder and implement your desired functionality. Refer to the provided examples for guidance.
 
-Note: This project builds on the capabilities of [bebopautonomous](https://github.com/amymcgovern/bebopautonomous) and [pyparrot](https://github.com/amymcgovern/pyparrot).
+**Note:** Ensure that your ROS (Robot Operating System) environment is properly configured and that all required packages are installed before proceeding.
 
 ---
 
 ## **Documentation**
-Comprehensive documentation is available, covering installation, API references, and tutorials:
-- **Main Documentation**: [Visit pyparrot's documentation](https://pyparrot.readthedocs.io) (many principles are shared).
+
+Extensive documentation is provided to support your development:
+- **Bebop2 topics using ROS:** Refer to the [pyparrot documentation](https://pyparrot.readthedocs.io), which shares many foundational concepts used in this project.
+- **Classes and methods:** Explore the detailed documentation available in the `docs` folder.
 
 ---
 
