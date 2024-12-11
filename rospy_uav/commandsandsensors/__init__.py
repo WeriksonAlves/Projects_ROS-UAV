@@ -1,3 +1,3 @@
 from .DroneCommandManager import DroneCommandManager
 from .DroneSensorManager import DroneSensorManager
-from .DroneSettingManager import DroneSettingManager
+from ...progress.DroneSettingManager import DroneSettingManager

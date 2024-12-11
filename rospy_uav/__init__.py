@@ -1,6 +1,6 @@
 from .commandsandsensors.DroneCommandManager import DroneCommandManager
 from .commandsandsensors.DroneSensorManager import DroneSensorManager
-from .commandsandsensors.DroneSettingManager import DroneSettingManager
+from ..progress.DroneSettingManager import DroneSettingManager
 
 from .interfaces.RosCommunication import RosCommunication
 

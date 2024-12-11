@@ -1,6 +1,6 @@
 from .commandsandsensors.DroneCommandManager import DroneCommandManager
 from .commandsandsensors.DroneSensorManager import DroneSensorManager
-from .commandsandsensors.DroneSettingManager import DroneSettingManager
+from ..developing.DroneSettingManager import DroneSettingManager
 from .ros.DroneCamera import DroneCamera
 from .ros.DroneControl import DroneControl
 from .ros.DroneSensors import DroneSensors
